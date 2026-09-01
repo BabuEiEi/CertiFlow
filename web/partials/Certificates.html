@@ -1,0 +1,129 @@
+<!-- Certificates Registry & Actions Partial -->
+<section id="certificatesSection" class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <h2 class="text-xl font-bold text-slate-900">ทะเบียนเกียรติบัตร (Certificates Registry)</h2>
+    <div class="flex space-x-2">
+      <button onclick="loadCertificatesList()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-md transition">
+        🔄 รีเฟรชตาราง
+      </button>
+    </div>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1">เลือกกิจกรรม</label>
+      <select id="certActivitySelect" onchange="loadCertificatesList()" class="w-full rounded-md border-slate-300 p-2 text-sm border bg-white">
+        <option value="">-- กิจกรรมทั้งหมด --</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1">สถานะเกียรติบัตร</label>
+      <select id="certStatusSelect" onchange="loadCertificatesList()" class="w-full rounded-md border-slate-300 p-2 text-sm border bg-white">
+        <option value="">-- ทุกสถานะ --</option>
+        <option value="DRAFT">DRAFT (ร่าง)</option>
+        <option value="ISSUED">ISSUED (ออกเลขแล้ว)</option>
+        <option value="REVOKED">REVOKED (ถูกยกเลิก)</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-xs font-medium text-slate-700 mb-1">ค้นหาใน registry</label>
+      <input type="text" id="certSearchQuery" onkeyup="filterCertificatesTable()" placeholder="ชื่อ, เลขที่..." class="w-full rounded-md border-slate-300 p-2 text-sm border">
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-slate-700 font-medium">
+          <tr>
+            <th class="px-4 py-3 text-left">Certificate ID</th>
+            <th class="px-4 py-3 text-left">เลขที่เกียรติบัตร</th>
+            <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
+            <th class="px-4 py-3 text-left">โรงเรียน/หน่วยงาน</th>
+            <th class="px-4 py-3 text-center">สถานะ</th>
+            <th class="px-4 py-3 text-right">การจัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="certTableBody" class="divide-y divide-slate-200">
+          <tr>
+            <td colspan="6" class="px-4 py-6 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Edit Certificate Details Modal -->
+<div id="editCertModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-slate-900">แก้ไขข้อมูลเกียรติบัตร</h3>
+      <button onclick="closeEditCertModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="editCertForm" onsubmit="handleSaveEditCert(event)" class="space-y-4 text-sm">
+      <input type="hidden" id="editCertId">
+
+      <div>
+        <label class="block text-xs font-medium text-slate-500">Certificate ID</label>
+        <p id="lblEditCertId" class="font-mono text-sm font-bold text-slate-800"></p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">คำนำหน้า</label>
+          <input type="text" id="editCertPrefix" class="w-full rounded-md border p-2 border-slate-300">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">ชื่อ</label>
+          <input type="text" id="editCertFirst" required class="w-full rounded-md border p-2 border-slate-300">
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">นามสกุล</label>
+          <input type="text" id="editCertLast" required class="w-full rounded-md border p-2 border-slate-300">
+        </div>
+      </div>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">สถานศึกษา/หน่วยงาน</label>
+        <input type="text" id="editCertSchool" class="w-full rounded-md border p-2 border-slate-300">
+      </div>
+
+      <div class="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+        ⚠️ การแก้ไขชื่อครั้งแรก ระบบจะบันทึก **ชื่อดั้งเดิม** ไว้ใน Audit Log โดยอัตโนมัติ
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t">
+        <button type="button" onclick="closeEditCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium">บันทึกการแก้ไข</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Revoke Certificate Modal -->
+<div id="revokeCertModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-rose-700">ยกเลิกเกียรติบัตร (Revoke)</h3>
+      <button onclick="closeRevokeCertModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="revokeCertForm" onsubmit="handleConfirmRevoke(event)" class="space-y-4 text-sm">
+      <input type="hidden" id="revokeCertId">
+      
+      <p class="text-slate-600 text-xs">คุณกำลังยกเลิกเกียรติบัตร <strong id="lblRevokeCertId" class="font-mono text-slate-900"></strong></p>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">ระบุเหตุผลการยกเลิก *</label>
+        <textarea id="revokeReasonText" required rows="3" placeholder="ระบุเหตุผลในการยกเลิกเกียรติบัตรฉบับนี้..." class="w-full rounded-md border p-2 border-slate-300 text-xs"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t">
+        <button type="button" onclick="closeRevokeCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium">ยืนยันยกเลิกใบนี้</button>
+      </div>
+    </form>
+  </div>
+</div>

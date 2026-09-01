@@ -1,0 +1,102 @@
+<!-- Participants Management & Import Partial -->
+<section id="participantsSection" class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <h2 class="text-xl font-bold text-slate-900">นำเข้าและจัดการผู้เข้าร่วม (Participants)</h2>
+    <button id="btnImportParticipants" onclick="openImportModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md shadow-sm transition">
+      + นำเข้ารายชื่อ (CSV/Text)
+    </button>
+  </div>
+
+  <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="w-full sm:w-1/2">
+      <label class="block text-xs font-medium text-slate-700 mb-1">เลือกกิจกรรม</label>
+      <select id="participantActivitySelect" onchange="loadParticipantsList()" class="w-full rounded-md border-slate-300 p-2 text-sm border bg-white">
+        <option value="">-- เลือกกิจกรรมเพื่อดูรายชื่อ --</option>
+      </select>
+    </div>
+    <div id="participantStats" class="text-xs text-slate-500 font-medium">
+      รายการทั้งหมด: <span id="totalParticipantCount" class="font-bold text-slate-800">0</span> ราย
+    </div>
+  </div>
+
+  <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="min-w-full divide-y divide-slate-200 text-sm">
+      <thead class="bg-slate-50 text-slate-700 font-medium">
+        <tr>
+          <th class="px-4 py-3 text-left">ID ผู้เข้าร่วม</th>
+          <th class="px-4 py-3 text-left">คำนำหน้า</th>
+          <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
+          <th class="px-4 py-3 text-left">สถานศึกษา/หน่วยงาน</th>
+          <th class="px-4 py-3 text-center">สถานะ</th>
+        </tr>
+      </thead>
+      <tbody id="participantTableBody" class="divide-y divide-slate-200">
+        <tr>
+          <td colspan="5" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- Import Modal -->
+<div id="importModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-slate-900">นำเข้ารายชื่อผู้เข้าร่วม</h3>
+      <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <div class="space-y-4 text-sm">
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">เลือกกิจกรรม *</label>
+        <select id="importModalActivitySelect" class="w-full rounded-md border p-2 border-slate-300 bg-white">
+          <option value="">-- เลือกกิจกรรม --</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">วางข้อมูลรายชื่อ (คั่นด้วยจุลภาค CSV หรือ Tab)</label>
+        <p class="text-xs text-slate-500 mb-2">รูปแบบคอลัมน์: `คำนำหน้า, ชื่อ, นามสกุล, สถานศึกษา/โรงเรียน, สถานะ` (ตัวอย่าง: `นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ผ่านการอบรม`)</p>
+        <textarea id="importTextData" rows="6" placeholder="นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ผ่านการอบรม&#10;นางสาว, สมหญิง, รักดี, โรงเรียนอนุบาล, เข้าร่วม" class="w-full rounded-md border p-3 border-slate-300 font-mono text-xs"></textarea>
+      </div>
+
+      <div class="flex justify-between items-center">
+        <button type="button" onclick="handleValidateImportBtn()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium text-xs">
+          🔍 ตรวจสอบข้อมูลก่อนนำเข้า (Validate)
+        </button>
+      </div>
+
+      <!-- Preview Summary & Validation Table -->
+      <div id="importPreviewContainer" class="hidden space-y-3 pt-4 border-t">
+        <div id="importSummaryBadge" class="flex space-x-3 text-xs font-medium"></div>
+
+        <div class="overflow-x-auto border rounded-lg max-h-60 overflow-y-auto">
+          <table class="min-w-full divide-y divide-slate-200 text-xs">
+            <thead class="bg-slate-50 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left">แถว</th>
+                <th class="px-3 py-2 text-left">ชื่อ-นามสกุล</th>
+                <th class="px-3 py-2 text-left">โรงเรียน</th>
+                <th class="px-3 py-2 text-left">ผลการตรวจ</th>
+              </tr>
+            </thead>
+            <tbody id="importPreviewTableBody" class="divide-y divide-slate-200"></tbody>
+          </table>
+        </div>
+
+        <div id="duplicateOverrideOption" class="hidden flex items-center space-x-2 text-xs text-amber-700 bg-amber-50 p-2.5 rounded border border-amber-200">
+          <input type="checkbox" id="chkOverrideDuplicates" class="rounded text-indigo-600">
+          <label for="chkOverrideDuplicates">ยืนยันนำเข้ารายชื่อที่อาจซ้ำซ้อนด้วย</label>
+        </div>
+
+        <div class="flex justify-end space-x-3 pt-2">
+          <button type="button" onclick="closeImportModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+          <button type="button" id="btnCommitImport" onclick="handleCommitImport()" class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium">
+            ✅ ยืนยันการบันทึกนำเข้า
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
