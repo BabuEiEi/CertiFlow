@@ -1,0 +1,8 @@
+{
+  "name": "certiflow-gas",
+  "private": true,
+  "scripts": {
+    "test": "for file in tests/*.test.js; do node \"$file\" || exit 1; done",
+    "check": "npm test"
+  }
+}

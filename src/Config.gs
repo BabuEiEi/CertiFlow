@@ -23,7 +23,8 @@ const Config = {
     PARTICIPANTS: 'Participants',
     CERTIFICATES: 'Certificates',
     GENERATION_QUEUE: 'GenerationQueue',
-    AUDIT_LOGS: 'AuditLogs'
+    AUDIT_LOGS: 'AuditLogs',
+    CERTIFICATE_REPORTS: 'CertificateReports'
   },
 
   HEADERS: {
@@ -60,6 +61,10 @@ const Config = {
     AuditLogs: [
       'logId', 'action', 'entityType', 'entityId', 'actorEmail',
       'actorRole', 'beforeJson', 'afterJson', 'note', 'createdAt'
+    ],
+    CertificateReports: [
+      'reportId', 'certificateId', 'message', 'contact', 'status',
+      'createdAt', 'resolvedAt', 'resolvedBy'
     ]
   },
 

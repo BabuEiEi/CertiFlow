@@ -3,11 +3,16 @@
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <h2 class="text-xl font-bold text-slate-900">ทะเบียนเกียรติบัตร (Certificates Registry)</h2>
     <div class="flex space-x-2">
+      <button onclick="startAssignNumberQueue()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition">
+        ⚡ ออกเลขแบบชุด
+      </button>
       <button onclick="loadCertificatesList()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-md transition">
         🔄 รีเฟรชตาราง
       </button>
     </div>
   </div>
+
+  <div id="generationQueueStatus" class="hidden bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"></div>
 
   <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
     <div>
@@ -123,6 +128,32 @@
       <div class="flex justify-end space-x-3 pt-3 border-t">
         <button type="button" onclick="closeRevokeCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
         <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium">ยืนยันยกเลิกใบนี้</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Reissue Certificate Modal -->
+<div id="reissueCertModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-emerald-700">ออกเกียรติบัตรใหม่ (Reissue)</h3>
+      <button onclick="closeReissueCertModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="reissueCertForm" onsubmit="handleConfirmReissue(event)" class="space-y-4 text-sm">
+      <input type="hidden" id="reissueCertId">
+
+      <p class="text-slate-600 text-xs">คุณกำลังออกเกียรติบัตรใหม่แทนใบที่ถูกยกเลิก <strong id="lblReissueCertId" class="font-mono text-slate-900"></strong> ระบบจะกำหนดเลขที่ใหม่เมื่อออกเกียรติบัตรอีกครั้ง</p>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">ระบุเหตุผลการออกใหม่ *</label>
+        <textarea id="reissueReasonText" required rows="3" placeholder="ระบุเหตุผลในการออกเกียรติบัตรใหม่..." class="w-full rounded-md border p-2 border-slate-300 text-xs"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t">
+        <button type="button" onclick="closeReissueCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium">ยืนยันออกใหม่</button>
       </div>
     </form>
   </div>

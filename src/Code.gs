@@ -7,26 +7,37 @@
  * Public and Management API Allowlist Routing Specification
  */
 const API_ROUTES = {
-  PUBLIC: ['activities', 'search', 'verify', 'preview', 'download', 'login', 'logout', 'session'],
+  PUBLIC: ['activities', 'search', 'verify', 'preview', 'download', 'reportIssue', 'login', 'logout', 'session'],
   MANAGEMENT: {
+    getActivities: ['ADMIN', 'STAFF'],
     createActivity: ['ADMIN'],
     updateActivity: ['ADMIN'],
+    deleteActivity: ['ADMIN'],
     validateTemplate: ['ADMIN'],
+    previewTemplate: ['ADMIN'],
     importParticipants: ['ADMIN', 'STAFF'],
     validateImport: ['ADMIN', 'STAFF'],
     getParticipants: ['ADMIN', 'STAFF'],
+    updateParticipant: ['ADMIN', 'STAFF'],
     getCertificates: ['ADMIN', 'STAFF'],
     getDashboardStats: ['ADMIN', 'STAFF'],
     assignNumbers: ['ADMIN', 'STAFF'],
     createGenerationQueue: ['ADMIN', 'STAFF'],
     getGenerationProgress: ['ADMIN', 'STAFF'],
+    processGenerationQueue: ['ADMIN', 'STAFF'],
+    cancelGenerationQueue: ['ADMIN', 'STAFF'],
     updateCertificate: ['ADMIN', 'STAFF'],
     issueCertificate: ['ADMIN', 'STAFF'],
     revokeCertificate: ['ADMIN', 'STAFF'],
+    reissueCertificate: ['ADMIN', 'STAFF'],
     deleteCertificate: ['ADMIN'],
     getUsers: ['ADMIN'],
     manageUser: ['ADMIN'],
-    getAuditLogs: ['ADMIN']
+    getSettings: ['ADMIN'],
+    updateSettings: ['ADMIN'],
+    getAuditLogs: ['ADMIN'],
+    getReports: ['ADMIN'],
+    resolveReport: ['ADMIN']
   }
 };
 
@@ -50,8 +61,10 @@ function doGet(e) {
     const template = HtmlService.createTemplateFromFile('web/Index');
     template.page = page;
     template.params = params;
-    template.webAppUrl = (Config.get(Config.KEYS.WEB_APP_URL) ||
-      'https://script.google.com/macros/s/AKfycbwEgpSmcBId4sCfVMbWxKdtiqVSLZpeRURPdu6xT-HB9kuyl55blv3tD37Cf7ILVSxb/exec')
+    const deployedUrl = typeof ScriptApp !== 'undefined' && ScriptApp.getService
+      ? ScriptApp.getService().getUrl()
+      : '';
+    template.webAppUrl = (Config.get(Config.KEYS.WEB_APP_URL) || deployedUrl || '')
       .replace(/[?#].*$/, '')
       .replace(/\/+$/, '');
 
@@ -60,7 +73,8 @@ function doGet(e) {
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify(Utils.buildResponse(false, null, error.message || String(error))))
+    if (typeof console !== 'undefined') console.error('doGet render failed', error);
+    return ContentService.createTextOutput(JSON.stringify(Utils.buildResponse(false, null, 'ไม่สามารถเปิดหน้าเว็บได้ในขณะนี้')))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -78,7 +92,8 @@ function doPost(e) {
 
     return handleApiRequest(action, payload, 'POST');
   } catch (error) {
-    return ContentService.createTextOutput(JSON.stringify(Utils.buildResponse(false, null, error.message || String(error))))
+    if (typeof console !== 'undefined') console.error('doPost parse failed', error);
+    return ContentService.createTextOutput(JSON.stringify(Utils.buildResponse(false, null, 'รูปแบบคำขอไม่ถูกต้อง')))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }
@@ -99,8 +114,8 @@ function handleApiRequest(action, payload, method = 'RPC') {
 
     let resultData = null;
 
-    if (method === 'GET' && ['login', 'logout', 'session'].includes(action)) {
-      throw new Error('Authentication actions must use POST or google.script.run.');
+    if (method === 'GET' && ['login', 'logout', 'session', 'reportIssue'].includes(action)) {
+      throw new Error('This action must use POST or google.script.run.');
     }
 
     // 1. Check Public Routes
@@ -127,7 +142,12 @@ function handleApiRequest(action, payload, method = 'RPC') {
     }
     return response;
   } catch (error) {
-    const response = Utils.buildResponse(false, null, error.message || String(error));
+    if (typeof console !== 'undefined') console.error(`API ${action || 'unknown'} failed`, error);
+    const isPublicRoute = API_ROUTES.PUBLIC.includes(action);
+    const errorMessage = isPublicRoute
+      ? Utils.sanitizePublicError(error)
+      : (error.message || String(error));
+    const response = Utils.buildResponse(false, null, errorMessage);
     if (method === 'GET' || method === 'POST') {
       return ContentService.createTextOutput(JSON.stringify(response))
         .setMimeType(ContentService.MimeType.JSON);
@@ -147,7 +167,15 @@ function handleApiRequest(action, payload, method = 'RPC') {
 function executePublicAction(action, payload) {
   switch (action) {
     case 'activities':
-      return ActivityService.getActivities();
+      return ActivityService.getActivities()
+        .filter(activity => activity.status === Config.ACTIVITY_STATUS.ACTIVE)
+        .map(activity => ({
+          activityId: activity.activityId,
+          activityName: activity.activityName,
+          issueAgency: activity.issueAgency,
+          issueDate: activity.issueDate,
+          status: activity.status
+        }));
     case 'search':
       const q = Validation.sanitizeText(payload.q);
       const activityId = payload.activityId || '';
@@ -162,6 +190,8 @@ function executePublicAction(action, payload) {
     case 'download':
       const format = (payload.format || 'pdf').toLowerCase();
       return ExportService.generateExportBlob(payload.id, format);
+    case 'reportIssue':
+      return ReportService.submit(payload.id || payload.certificateId, payload.message, payload.contact);
     case 'login':
       return AuthService.login(payload.userId, payload.password);
     case 'logout':
@@ -182,17 +212,25 @@ function executePublicAction(action, payload) {
  */
 function executeManagementAction(action, payload, userContext) {
   switch (action) {
+    case 'getActivities':
+      return ActivityService.getActivities();
     case 'createActivity':
     case 'updateActivity':
       return ActivityService.saveActivity(payload);
+    case 'deleteActivity':
+      return ActivityService.deleteActivity(payload.activityId);
     case 'validateTemplate':
       return TemplateService.validateTemplate(payload.templateId);
+    case 'previewTemplate':
+      return TemplateService.createTemplatePreview(payload.activityId);
     case 'importParticipants':
       return ParticipantService.commitImport(payload.activityId, payload.rows, payload.allowOverride);
     case 'validateImport':
       return ParticipantService.validateImport(payload.activityId, payload.rows);
     case 'getParticipants':
       return ParticipantService.getParticipants(payload.activityId);
+    case 'updateParticipant':
+      return ParticipantService.updateParticipant(payload.participantId, payload.updates || payload);
     case 'getCertificates':
       return CertificateService.getCertificates(payload.activityId, payload.filter || {});
     case 'getDashboardStats':
@@ -202,6 +240,7 @@ function executeManagementAction(action, payload, userContext) {
 
       const issuedCount = allCertificates.filter(c => c.certificateStatus === Config.CERT_STATUS.ISSUED).length;
       const revokedCount = allCertificates.filter(c => c.certificateStatus === Config.CERT_STATUS.REVOKED).length;
+      const pendingCount = allCertificates.filter(c => [Config.CERT_STATUS.DRAFT, Config.CERT_STATUS.PENDING].includes(c.certificateStatus)).length;
 
       const activitySummaries = activities.map(act => {
         const actCerts = allCertificates.filter(c => String(c.activityId).trim() === String(act.activityId).trim());
@@ -220,22 +259,29 @@ function executeManagementAction(action, payload, userContext) {
         totalActivities: activities.length,
         totalParticipants: allParticipants.length,
         totalIssued: issuedCount,
+        totalPending: pendingCount,
         totalRevoked: revokedCount,
         activitiesSummary: activitySummaries
       };
 
     case 'assignNumbers':
-      return NumberService.generateNextNumbers(payload.activityId);
+      return QueueService.createJob(payload.activityId, 'ASSIGN_NUMBER', payload.totalCount, payload.startRow);
     case 'createGenerationQueue':
       return QueueService.createJob(payload.activityId, payload.jobType, payload.totalCount, payload.startRow);
     case 'getGenerationProgress':
       return QueueService.getJobProgress(payload.queueId);
+    case 'processGenerationQueue':
+      return QueueService.processNextBatch(payload.queueId);
+    case 'cancelGenerationQueue':
+      return QueueService.cancelJob(payload.queueId);
     case 'updateCertificate':
       return CertificateService.updateCertificate(payload.certificateId, payload.updates || payload);
     case 'issueCertificate':
       return CertificateService.issueCertificate(payload.certificateId);
     case 'revokeCertificate':
       return CertificateService.revokeCertificate(payload.certificateId, payload.reason);
+    case 'reissueCertificate':
+      return CertificateService.reissueCertificate(payload.certificateId, payload.reason);
     case 'deleteCertificate':
       return CertificateService.deleteCertificate(payload.certificateId);
     case 'getUsers':
@@ -261,7 +307,8 @@ function executeManagementAction(action, payload, userContext) {
         const now = new Date().toISOString();
         const role = String(payload.role || Config.ROLES.STAFF).trim().toUpperCase();
         const status = String(payload.status || Config.USER_STATUS.ACTIVE).trim().toUpperCase();
-        const name = Validation.sanitizeText(payload.name);
+        const name = Validation.sanitizeSheetText(payload.name);
+        const email = String(payload.email || (existing ? existing.email : '') || '').toLowerCase().trim();
 
         if (![Config.ROLES.ADMIN, Config.ROLES.STAFF].includes(role)) {
           throw new Error('role ต้องเป็น ADMIN หรือ STAFF');
@@ -272,6 +319,9 @@ function executeManagementAction(action, payload, userContext) {
         if (!name) {
           throw new Error('กรุณาระบุชื่อผู้ใช้งาน');
         }
+        if (email && !Validation.isValidEmail(email)) {
+          throw new Error('รูปแบบ email ไม่ถูกต้อง');
+        }
         if (!existing && !AuthService.validatePassword(payload.password)) {
           throw new Error('ผู้ใช้ใหม่ต้องมีรหัสผ่าน 8-128 ตัวอักษร');
         }
@@ -281,11 +331,20 @@ function executeManagementAction(action, payload, userContext) {
         if (userId === userContext.userId && role !== Config.ROLES.ADMIN) {
           throw new Error('ไม่สามารถลดสิทธิ์บัญชี ADMIN ที่กำลังเข้าสู่ระบบอยู่');
         }
+        if (existing && String(existing.role).toUpperCase() === Config.ROLES.ADMIN && String(existing.status).toUpperCase() === Config.USER_STATUS.ACTIVE &&
+            (role !== Config.ROLES.ADMIN || status !== Config.USER_STATUS.ACTIVE)) {
+          const otherActiveAdmins = users.filter(user =>
+            AuthService.normalizeUserId(user.userId) !== userId &&
+            String(user.role || '').toUpperCase() === Config.ROLES.ADMIN &&
+            String(user.status || '').toUpperCase() === Config.USER_STATUS.ACTIVE
+          );
+          if (otherActiveAdmins.length === 0) throw new Error('ต้องมี ADMIN ที่ Active อย่างน้อย 1 บัญชี');
+        }
 
         const userObj = {
           ...(existing || {}),
           userId: userId,
-          email: String(payload.email || (existing ? existing.email : '') || '').toLowerCase().trim(),
+          email: email,
           name: name,
           role: role,
           status: status,
@@ -313,11 +372,25 @@ function executeManagementAction(action, payload, userContext) {
         return AuthService.sanitizeUser(userObj);
       }
       return {};
+    case 'getSettings':
+      return SettingsService.getSettings();
+    case 'updateSettings':
+      return SettingsService.updateSettings(payload.settings || payload);
     case 'getAuditLogs':
       if (typeof SheetService === 'undefined') return { logs: [] };
-      const logs = SheetService.readRows(Config.SHEETS.AUDIT_LOGS);
-      // Return last 100 logs reverse sorted
-      return { logs: logs.slice(-100).reverse() };
+      let logs = SheetService.readRows(Config.SHEETS.AUDIT_LOGS);
+      const actionFilter = Validation.sanitizeText(payload.action).toUpperCase();
+      const entityFilter = Validation.sanitizeText(payload.entityType).toLowerCase();
+      const actorFilter = Validation.sanitizeText(payload.actor).toLowerCase();
+      if (actionFilter) logs = logs.filter(log => String(log.action || '').toUpperCase().includes(actionFilter));
+      if (entityFilter) logs = logs.filter(log => String(log.entityType || '').toLowerCase().includes(entityFilter));
+      if (actorFilter) logs = logs.filter(log => String(log.actorEmail || '').toLowerCase().includes(actorFilter));
+      const logLimit = Math.min(Math.max(parseInt(payload.limit || 100, 10), 1), 200);
+      return { logs: logs.slice(-logLimit).reverse() };
+    case 'getReports':
+      return ReportService.list();
+    case 'resolveReport':
+      return ReportService.resolve(payload.reportId);
     default:
       return { status: 'acknowledged', action, actor: userContext.email };
   }
@@ -370,4 +443,28 @@ function bootstrapAdmin() {
   }
   Logger.log('Bootstrap ADMIN completed: ' + JSON.stringify(admin));
   return admin;
+}
+
+/** Install one hourly maintenance trigger. Run manually from the editor. */
+function installMaintenanceTrigger() {
+  const handler = 'cleanupStaleTemporaryFiles';
+  const exists = ScriptApp.getProjectTriggers().some(trigger => trigger.getHandlerFunction() === handler);
+  if (!exists) ScriptApp.newTrigger(handler).timeBased().everyHours(1).create();
+  return { installed: !exists, alreadyExisted: exists };
+}
+
+function cleanupStaleTemporaryFiles() {
+  return ExportService.cleanupStaleTemporaryFiles(120);
+}
+
+/** Remove only CertiFlow's maintenance trigger. Run manually if required. */
+function removeMaintenanceTrigger() {
+  let removed = 0;
+  ScriptApp.getProjectTriggers().forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'cleanupStaleTemporaryFiles') {
+      ScriptApp.deleteTrigger(trigger);
+      removed++;
+    }
+  });
+  return { removed };
 }

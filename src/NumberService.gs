@@ -65,11 +65,14 @@ const NumberService = {
    */
   generateNextNumbers(activityId, activityConfig = null) {
     if (typeof LockService === 'undefined') {
-      // Local testing fallback
+      const localActivity = activityConfig || {};
+      const start = parseInt(localActivity.startNumber === undefined ? 1 : localActivity.startNumber, 10);
+      const current = parseInt(localActivity.sequence === undefined || localActivity.sequence === '' ? start - 1 : localActivity.sequence, 10);
+      const next = current + 1;
       return {
-        certificateId: this.formatCertificateId(activityId, 1),
-        certificateNo: 'เลขที่ 0001/2569',
-        runningNumber: 1
+        certificateId: this.formatCertificateId(activityId, next),
+        certificateNo: this.formatCertificateNo(localActivity, next),
+        runningNumber: next
       };
     }
 
@@ -85,11 +88,34 @@ const NumberService = {
         throw new Error(`Activity '${activityId}' not found.`);
       }
 
-      let currentMax = parseInt(activity.sequence || 0, 10);
-      const nextRunningNumber = currentMax + 1;
+      const startNumber = Validation.parseInteger(activity.startNumber === '' || activity.startNumber === undefined ? 1 : activity.startNumber, 'startNumber', 0, 999999999);
+      const endNumber = Validation.parseInteger(activity.endNumber === '' || activity.endNumber === undefined ? 9999 : activity.endNumber, 'endNumber', startNumber, 999999999);
+      const certificates = typeof CertificateService !== 'undefined'
+        ? CertificateService.getAllCertificates().filter(c => String(c.activityId).trim() === String(activityId).trim())
+        : [];
+      const maxAssigned = certificates.reduce((max, cert) => {
+        if (!cert.certificateNo) return max;
+        const value = parseInt(cert.runningNumber, 10);
+        return Number.isFinite(value) ? Math.max(max, value) : max;
+      }, startNumber - 1);
+      const storedSequence = parseInt(activity.sequence === '' || activity.sequence === undefined ? startNumber - 1 : activity.sequence, 10);
+      let nextRunningNumber = Math.max(startNumber - 1, storedSequence, maxAssigned) + 1;
+      let certNo = this.formatCertificateNo(activity, nextRunningNumber);
+      const existingNumbers = new Set(certificates
+        .filter(cert => cert.certificateNo)
+        .map(cert => String(cert.certificateNo).trim()));
+      while (existingNumbers.has(certNo) && nextRunningNumber <= endNumber) {
+        nextRunningNumber++;
+        certNo = this.formatCertificateNo(activity, nextRunningNumber);
+      }
+      if (nextRunningNumber > endNumber) {
+        throw new Error(`เลขเกียรติบัตรของกิจกรรม '${activityId}' เกิน endNumber (${endNumber}) แล้ว`);
+      }
 
       const certId = this.formatCertificateId(activityId, nextRunningNumber);
-      const certNo = this.formatCertificateNo(activity, nextRunningNumber);
+      if (typeof ActivityService !== 'undefined' && ActivityService.updateSequence) {
+        ActivityService.updateSequence(activityId, nextRunningNumber);
+      }
 
       return {
         certificateId: certId,

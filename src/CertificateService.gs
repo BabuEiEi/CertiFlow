@@ -8,11 +8,7 @@ const CertificateService = {
    */
   getAllCertificates() {
     if (typeof SheetService === 'undefined') return [];
-    try {
-      return SheetService.readRows(Config.SHEETS.CERTIFICATES);
-    } catch (e) {
-      return [];
-    }
+    return SheetService.readRows(Config.SHEETS.CERTIFICATES);
   },
 
   /**
@@ -76,10 +72,13 @@ const CertificateService = {
     let origFirst = cert.originalFirstName || cert.firstName;
     let origLast = cert.originalLastName || cert.lastName;
 
-    const newPrefixName = updates.prefixName !== undefined ? Validation.sanitizeText(updates.prefixName) : cert.prefixName;
-    const newFirstName = updates.firstName !== undefined ? Validation.sanitizeText(updates.firstName) : cert.firstName;
-    const newLastName = updates.lastName !== undefined ? Validation.sanitizeText(updates.lastName) : cert.lastName;
-    const newSchool = updates.school !== undefined ? Validation.sanitizeText(updates.school) : cert.school;
+    const newPrefixName = updates.prefixName !== undefined ? Validation.sanitizeSheetText(updates.prefixName) : cert.prefixName;
+    const newFirstName = updates.firstName !== undefined ? Validation.sanitizeSheetText(updates.firstName) : cert.firstName;
+    const newLastName = updates.lastName !== undefined ? Validation.sanitizeSheetText(updates.lastName) : cert.lastName;
+    const newSchool = updates.school !== undefined ? Validation.sanitizeSheetText(updates.school) : cert.school;
+    if (!newFirstName || !newLastName) {
+      throw new Error('ชื่อและนามสกุลจำเป็นต้องระบุ');
+    }
 
     const updatedCert = {
       ...cert,
@@ -94,11 +93,16 @@ const CertificateService = {
       updatedBy: actorEmail
     };
 
-    if (updates.participantStatus) {
-      updatedCert.participantStatus = updates.participantStatus;
+    if (updates.participantStatus !== undefined) {
+      const participantStatus = Validation.sanitizeText(updates.participantStatus);
+      if (!['เข้าร่วม', 'ผ่านการอบรม'].includes(participantStatus)) {
+        throw new Error('participantStatus ต้องเป็น เข้าร่วม หรือ ผ่านการอบรม');
+      }
+      updatedCert.participantStatus = participantStatus;
     }
 
     this.saveCertificateRow(updatedCert);
+    this.syncParticipantFromCertificate(updatedCert);
 
     if (typeof AuditService !== 'undefined') {
       AuditService.log(
@@ -129,8 +133,14 @@ const CertificateService = {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }
 
-    if (cert.certificateStatus === Config.CERT_STATUS.REVOKED || cert.certificateStatus === Config.CERT_STATUS.DELETED) {
+    if (cert.certificateStatus === Config.CERT_STATUS.ISSUED) {
+      return cert;
+    }
+    if (![Config.CERT_STATUS.DRAFT, Config.CERT_STATUS.PENDING].includes(cert.certificateStatus)) {
       throw new Error(`Cannot issue certificate in status '${cert.certificateStatus}'.`);
+    }
+    if (!Validation.sanitizeText(cert.firstName) || !Validation.sanitizeText(cert.lastName)) {
+      throw new Error('ไม่สามารถออกเกียรติบัตรที่ไม่มีชื่อหรือนามสกุล');
     }
 
     const beforeObj = JSON.parse(JSON.stringify(cert));
@@ -140,7 +150,13 @@ const CertificateService = {
     let certNo = cert.certificateNo;
     let runningNumber = cert.runningNumber;
 
-    if (!certNo && typeof NumberService !== 'undefined') {
+    if (certNo) {
+      const collision = this.getAllCertificates().find(item =>
+        item.certificateId !== cert.certificateId &&
+        String(item.certificateNo || '').trim() === String(certNo).trim()
+      );
+      if (collision) throw new Error(`เลขเกียรติบัตร '${certNo}' ซ้ำกับ ${collision.certificateId}`);
+    } else if (typeof NumberService !== 'undefined') {
       const generated = NumberService.generateNextNumbers(cert.activityId);
       certNo = generated.certificateNo;
       runningNumber = generated.runningNumber;
@@ -193,8 +209,8 @@ const CertificateService = {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }
 
-    if (cert.certificateStatus === Config.CERT_STATUS.DELETED) {
-      throw new Error(`Certificate '${certificateId}' is already deleted.`);
+    if (cert.certificateStatus !== Config.CERT_STATUS.ISSUED) {
+      throw new Error(`ยกเลิกได้เฉพาะเกียรติบัตรสถานะ ISSUED (สถานะปัจจุบัน: ${cert.certificateStatus})`);
     }
 
     const beforeObj = JSON.parse(JSON.stringify(cert));
@@ -228,6 +244,65 @@ const CertificateService = {
   },
 
   /**
+   * Reissue a revoked certificate: returns it to DRAFT so it can be issued again
+   * (a fresh number is generated on the next issueCertificate call, preserving history).
+   * @param {string} certificateId
+   * @param {string} reason
+   * @return {Object}
+   */
+  reissueCertificate(certificateId, reason) {
+    if (typeof AuthService !== 'undefined') {
+      AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
+    }
+
+    if (!reason || String(reason).trim() === '') {
+      throw new Error('กรุณาระบุเหตุผลการออกเกียรติบัตรใหม่');
+    }
+
+    const cert = this.getById(certificateId);
+    if (!cert) {
+      throw new Error(`Certificate '${certificateId}' not found.`);
+    }
+
+    if (cert.certificateStatus !== Config.CERT_STATUS.REVOKED) {
+      throw new Error(`ออกใหม่ได้เฉพาะเกียรติบัตรสถานะ REVOKED (สถานะปัจจุบัน: ${cert.certificateStatus})`);
+    }
+
+    const beforeObj = JSON.parse(JSON.stringify(cert));
+    const now = new Date().toISOString();
+    const actorEmail = typeof AuthService !== 'undefined' ? AuthService.getCurrentUserEmail() : 'SYSTEM';
+
+    const reissuedCert = {
+      ...cert,
+      certificateStatus: Config.CERT_STATUS.DRAFT,
+      certificateNo: '',
+      runningNumber: '',
+      issuedAt: '',
+      issuedBy: '',
+      revokedAt: '',
+      revokedBy: '',
+      revokeReason: '',
+      updatedAt: now,
+      updatedBy: actorEmail
+    };
+
+    this.saveCertificateRow(reissuedCert);
+
+    if (typeof AuditService !== 'undefined') {
+      AuditService.log(
+        AuditService.ACTIONS.REISSUE_CERTIFICATE,
+        'Certificate',
+        certificateId,
+        beforeObj,
+        reissuedCert,
+        `Reissued certificate ${certificateId}. Reason: ${reason}`
+      );
+    }
+
+    return reissuedCert;
+  },
+
+  /**
    * Permanent delete certificate (ADMIN only!)
    * @param {string} certificateId
    * @return {Object}
@@ -240,6 +315,10 @@ const CertificateService = {
     const cert = this.getById(certificateId);
     if (!cert) {
       throw new Error(`Certificate '${certificateId}' not found.`);
+    }
+
+    if (![Config.CERT_STATUS.DRAFT, Config.CERT_STATUS.PENDING].includes(cert.certificateStatus)) {
+      throw new Error('เกียรติบัตรที่เคยออกแล้วต้องใช้ REVOKED เพื่อรักษาหลักฐาน ห้ามลบถาวร');
     }
 
     const beforeObj = JSON.parse(JSON.stringify(cert));
@@ -284,6 +363,28 @@ const CertificateService = {
     } else {
       SheetService.appendRowsBatch(Config.SHEETS.CERTIFICATES, [rowValues]);
     }
+  },
+
+  /** Keep the participant registry consistent after certificate corrections. */
+  syncParticipantFromCertificate(certObj) {
+    if (typeof SheetService === 'undefined' || !certObj.participantId) return;
+    const participants = SheetService.readRows(Config.SHEETS.PARTICIPANTS);
+    const participant = participants.find(item => String(item.participantId).trim() === String(certObj.participantId).trim());
+    if (!participant || !participant._rowIndex) return;
+    const updated = {
+      ...participant,
+      prefixName: certObj.prefixName,
+      firstName: certObj.firstName,
+      lastName: certObj.lastName,
+      school: certObj.school,
+      participantStatus: certObj.participantStatus,
+      updatedAt: certObj.updatedAt,
+      updatedBy: certObj.updatedBy
+    };
+    const values = Config.HEADERS.Participants.map(key => updated[key] !== undefined ? updated[key] : '');
+    SheetService.getSheet(Config.SHEETS.PARTICIPANTS)
+      .getRange(participant._rowIndex, 1, 1, values.length)
+      .setValues([values]);
   }
 };
 

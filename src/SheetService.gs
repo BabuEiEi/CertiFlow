@@ -95,6 +95,8 @@ const SheetService = {
     const rows = [];
 
     for (let i = 1; i < data.length; i++) {
+      const isBlankRow = data[i].every(value => value === '' || value === null);
+      if (isBlankRow) continue;
       const rowObj = { _rowIndex: i + 1 };
       headers.forEach((header, colIndex) => {
         rowObj[header] = data[i][colIndex];
@@ -111,13 +113,26 @@ const SheetService = {
    * @param {Array<Array<*>>} rowsData Matrix of values matching header columns
    */
   appendRowsBatch(sheetName, rowsData) {
-    if (!rowsData || rowsData.length === 0) return;
+    if (!rowsData || rowsData.length === 0) return null;
     const sheet = this.getSheet(sheetName);
     const lastRow = sheet.getLastRow();
     const numRows = rowsData.length;
     const numCols = rowsData[0].length;
 
     sheet.getRange(lastRow + 1, 1, numRows, numCols).setValues(rowsData);
+    return { startRow: lastRow + 1, rowCount: numRows, columnCount: numCols };
+  },
+
+  /**
+   * Delete a precisely identified contiguous range. Intended only for rolling
+   * back a batch append while the caller still holds ScriptLock.
+   */
+  deleteRows(sheetName, startRow, rowCount) {
+    if (!rowCount || rowCount < 1) return;
+    if (!startRow || startRow < 2) {
+      throw new Error('Refusing to delete a header or an unresolved row range.');
+    }
+    this.getSheet(sheetName).deleteRows(startRow, rowCount);
   }
 };
 

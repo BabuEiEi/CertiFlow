@@ -2,6 +2,8 @@
  * Tests for NumberService formatting functions
  */
 
+const assert = require('node:assert/strict');
+
 // Simple assertions for node/jest/native test runner
 function testThaiNumberFormatting() {
   const thaiDigits = ['๐', '๑', '๒', '๓', '๔', '๕', '๖', '๗', '๘', '๙'];
@@ -13,8 +15,8 @@ function testThaiNumberFormatting() {
     return str;
   };
 
-  console.assert(formatNumber('2221', 'THAI') === '๒๒๒๑', 'Thai conversion failed');
-  console.assert(formatNumber('2221', 'ARABIC') === '2221', 'Arabic conversion failed');
+  assert.ok(formatNumber('2221', 'THAI') === '๒๒๒๑', 'Thai conversion failed');
+  assert.ok(formatNumber('2221', 'ARABIC') === '2221', 'Arabic conversion failed');
   console.log('NumberService formatting tests passed.');
 }
 

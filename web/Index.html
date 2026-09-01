@@ -6,6 +6,8 @@
   <title>CertiFlow - ระบบจัดการและตรวจสอบเกียรติบัตรออนไลน์</title>
   <!-- Tailwind CSS via CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" integrity="sha512-CNgIRecGo7nphbeZ04Sc13ka07xxzB/JFZ2sW0S4GvN5J4VHwEZo53Lvyqeenq7Z7oZ0BjAA7xqvW1Y93Zmh5w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <?!= include('web/Styles'); ?>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col font-sans">
@@ -113,6 +115,14 @@
       <? } ?>
     </div>
   </main>
+
+  <div id="mediaModal" class="hidden fixed inset-0 z-[120] bg-slate-900/70 items-center justify-center p-4" onclick="if(event.target===this) closeMediaModal()">
+    <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full p-4 relative">
+      <button onclick="closeMediaModal()" class="absolute right-3 top-2 text-2xl text-slate-500" aria-label="ปิด">&times;</button>
+      <h3 id="mediaModalTitle" class="font-bold text-slate-900 mb-4 pr-8"></h3>
+      <div id="mediaModalContent" class="flex justify-center max-h-[75vh] overflow-auto"></div>
+    </div>
+  </div>
 
   <!-- Footer -->
   <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">

@@ -278,6 +278,9 @@
         </div>
 
         <div class="flex flex-wrap gap-2 pt-2">
+          <button onclick="previewCertBlob('${cert.certificateId}')" class="px-3.5 py-1.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-medium transition">
+            👁 ดูตัวอย่าง
+          </button>
           <button onclick="downloadCertBlob('${cert.certificateId}', 'pdf')" class="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-medium transition">
             📄 ดาวน์โหลด PDF
           </button>
@@ -287,6 +290,8 @@
           <a href="?page=verify&id=${cert.certificateId}" target="_blank" class="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium transition">
             🔍 ตรวจสอบความถูกต้อง (Verify)
           </a>
+          <button onclick="showQrModal('${cert.certificateId}', '${escapeHtml(cert.verificationUrl || '')}')" class="px-3.5 py-1.5 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded text-xs font-medium transition">▦ QR</button>
+          <button onclick="reportCertificateIssue('${cert.certificateId}')" class="px-3.5 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-700 rounded text-xs font-medium transition">⚑ แจ้งข้อมูลไม่ถูกต้อง</button>
         </div>
       </div>
     `).join('');
@@ -308,6 +313,58 @@
         }
       })
       .catch((err) => showAlert(`ดาวน์โหลดล้มเหลว: ${err.message}`, true));
+  }
+
+  function openMediaModal(title, contentNode) {
+    const modal = document.getElementById('mediaModal');
+    const content = document.getElementById('mediaModalContent');
+    document.getElementById('mediaModalTitle').textContent = title;
+    content.replaceChildren(contentNode);
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeMediaModal() {
+    const modal = document.getElementById('mediaModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  function previewCertBlob(certificateId) {
+    callApi('preview', { id: certificateId })
+      .then(res => {
+        const img = document.createElement('img');
+        img.src = `data:${res.mimeType};base64,${res.base64}`;
+        img.alt = `ตัวอย่างเกียรติบัตร ${certificateId}`;
+        img.className = 'max-w-full h-auto';
+        openMediaModal(`ตัวอย่าง ${certificateId}`, img);
+      })
+      .catch(err => showAlert(`สร้างตัวอย่างไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function showQrModal(certificateId, verificationUrl) {
+    if (!verificationUrl || typeof QRCode === 'undefined') return showAlert('ไม่สามารถสร้าง QR Code ได้', true);
+    const wrapper = document.createElement('div');
+    wrapper.className = 'space-y-3 text-center';
+    const qr = document.createElement('div');
+    qr.className = 'flex justify-center';
+    wrapper.appendChild(qr);
+    const caption = document.createElement('p');
+    caption.className = 'text-xs text-slate-500 break-all';
+    caption.textContent = verificationUrl;
+    wrapper.appendChild(caption);
+    openMediaModal(`QR ตรวจสอบ ${certificateId}`, wrapper);
+    new QRCode(qr, { text: verificationUrl, width: 220, height: 220 });
+  }
+
+  function reportCertificateIssue(certificateId) {
+    const message = prompt('กรุณาระบุข้อมูลที่ไม่ถูกต้อง (อย่างน้อย 10 ตัวอักษร)');
+    if (!message) return;
+    const contact = prompt('ข้อมูลติดต่อกลับ (ไม่บังคับ)') || '';
+    callApi('reportIssue', { id: certificateId, message, contact })
+      .then(result => showAlert(`รับแจ้งแล้ว เลขที่ ${result.reportId}`))
+      .catch(err => showAlert(`ส่งรายงานไม่สำเร็จ: ${err.message}`, true));
   }
 
   function initVerifyPage() {
@@ -343,9 +400,9 @@
               <p><span class="font-bold text-slate-900">Certificate ID:</span> <span class="font-mono">${escapeHtml(c.certificateId)}</span></p>
               <p><span class="font-bold text-slate-900">เลขที่เกียรติบัตร:</span> <span class="font-bold text-indigo-600">${escapeHtml(c.certificateNo)}</span></p>
               <p><span class="font-bold text-slate-900">ชื่อผู้รับ:</span> ${escapeHtml(c.fullName)}</p>
-              <p><span class="font-bold text-slate-900">สถานศึกษา/หน่วยงาน:</span> ${escapeHtml(c.school || '-')}</p>
               <p><span class="font-bold text-slate-900">กิจกรรม:</span> ${escapeHtml(c.activityName || '-')}</p>
               <p><span class="font-bold text-slate-900">หน่วยงานที่ออก:</span> ${escapeHtml(c.issueAgency || '-')}</p>
+              <p><span class="font-bold text-slate-900">วันที่ออก:</span> ${escapeHtml(c.issueDate || '-')}</p>
             </div>
           `;
         }
@@ -368,6 +425,7 @@
         document.getElementById('statActivities').textContent = stats.totalActivities || 0;
         document.getElementById('statParticipants').textContent = stats.totalParticipants || 0;
         document.getElementById('statIssued').textContent = stats.totalIssued || 0;
+        document.getElementById('statPending').textContent = stats.totalPending || 0;
         document.getElementById('statRevoked').textContent = stats.totalRevoked || 0;
 
         const tbody = document.getElementById('dashboardActivitySummary');
@@ -400,7 +458,7 @@
      ========================================================================== */
 
   function loadActivitiesList() {
-    callApi('activities')
+    callApi('getActivities')
       .then((activities) => {
         CertiFlowState.activities = activities || [];
         const tbody = document.getElementById('activityTableBody');
@@ -425,7 +483,7 @@
             <td class="px-4 py-3 text-right space-x-2">
               ${CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN' ? `<button onclick="editActivity('${act.activityId}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium">
                 ✏️ แก้ไข
-              </button>` : '<span class="text-xs text-slate-400">ดูอย่างเดียว</span>'}
+              </button><button onclick="deleteActivity('${act.activityId}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">🗑 ลบ</button>` : '<span class="text-xs text-slate-400">ดูอย่างเดียว</span>'}
             </td>
           </tr>
         `).join('');
@@ -454,6 +512,10 @@
       document.getElementById('actPrefix').value = activityObj.prefix || '';
       document.getElementById('actYear').value = activityObj.year || '2569';
       document.getElementById('actNumberFormat').value = activityObj.numberFormat || 'ARABIC';
+      document.getElementById('actStartNumber').value = activityObj.startNumber === '' ? 1 : (activityObj.startNumber || 1);
+      document.getElementById('actEndNumber').value = activityObj.endNumber || 9999;
+      document.getElementById('actDigitLength').value = activityObj.digitLength || 4;
+      document.getElementById('actSeparator').value = activityObj.separator || '/';
       document.getElementById('actTemplateId').value = activityObj.templateId || '';
       document.getElementById('actStatus').value = activityObj.status || 'DRAFT';
     } else {
@@ -471,6 +533,13 @@
   function editActivity(activityId) {
     const act = CertiFlowState.activities.find(a => a.activityId === activityId);
     if (act) openActivityModal(act);
+  }
+
+  function deleteActivity(activityId) {
+    if (!confirm(`ลบกิจกรรม ${activityId} หรือไม่? ระบบจะปฏิเสธหากมีข้อมูลอ้างอิง`)) return;
+    callApi('deleteActivity', { activityId })
+      .then(() => { showAlert('ลบกิจกรรมเรียบร้อย'); loadActivitiesList(); })
+      .catch(err => showAlert(`ลบกิจกรรมไม่สำเร็จ: ${err.message}`, true));
   }
 
   function handleValidateTemplateBtn() {
@@ -497,6 +566,20 @@
       });
   }
 
+  function handlePreviewTemplateBtn() {
+    const activityId = document.getElementById('actId').value;
+    if (!activityId) return showAlert('กรุณาบันทึกกิจกรรมก่อนสร้าง Preview', true);
+    callApi('previewTemplate', { activityId })
+      .then(res => {
+        const img = document.createElement('img');
+        img.src = `data:${res.mimeType};base64,${res.base64}`;
+        img.alt = `ตัวอย่าง Template ${activityId}`;
+        img.className = 'max-w-full h-auto';
+        openMediaModal(`Template Preview — ${activityId}`, img);
+      })
+      .catch(err => showAlert(`Preview Template ไม่สำเร็จ: ${err.message}`, true));
+  }
+
   function handleSaveActivity(e) {
     e.preventDefault();
     const payload = {
@@ -511,6 +594,10 @@
       prefix: document.getElementById('actPrefix').value,
       year: document.getElementById('actYear').value,
       numberFormat: document.getElementById('actNumberFormat').value,
+      startNumber: document.getElementById('actStartNumber').value,
+      endNumber: document.getElementById('actEndNumber').value,
+      digitLength: document.getElementById('actDigitLength').value,
+      separator: document.getElementById('actSeparator').value,
       templateId: document.getElementById('actTemplateId').value.trim(),
       status: document.getElementById('actStatus').value
     };
@@ -535,7 +622,7 @@
   }
 
   function loadParticipantActivitiesDropdown() {
-    callApi('activities')
+    callApi('getActivities')
       .then((activities) => {
         CertiFlowState.activities = activities || [];
         const select1 = document.getElementById('participantActivitySelect');
@@ -555,20 +642,21 @@
     const totalCount = document.getElementById('totalParticipantCount');
 
     if (!activityId) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td></tr>';
       if (totalCount) totalCount.textContent = '0';
       return;
     }
 
-    if (tbody) tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายชื่อผู้เข้าร่วม...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายชื่อผู้เข้าร่วม...</td></tr>';
 
     callApi('getParticipants', { activityId })
       .then((participants) => {
+        CertiFlowState.participants = participants || [];
         if (totalCount) totalCount.textContent = participants.length;
         if (!tbody) return;
 
         if (!participants || participants.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
           return;
         }
 
@@ -581,10 +669,40 @@
             <td class="px-4 py-3 text-center">
               <span class="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">${escapeHtml(p.participantStatus)}</span>
             </td>
+            <td class="px-4 py-3 text-right"><button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 rounded">แก้ไข</button></td>
           </tr>
         `).join('');
       })
       .catch((err) => showAlert(`โหลดรายชื่อล้มเหลว: ${err.message}`, true));
+  }
+
+  function openParticipantModal(participantId) {
+    const participant = CertiFlowState.participants.find(item => item.participantId === participantId);
+    if (!participant) return;
+    document.getElementById('editParticipantId').value = participantId;
+    document.getElementById('editParticipantPrefix').value = participant.prefixName || '';
+    document.getElementById('editParticipantFirst').value = participant.firstName || '';
+    document.getElementById('editParticipantLast').value = participant.lastName || '';
+    document.getElementById('editParticipantSchool').value = participant.school || '';
+    document.getElementById('editParticipantStatus').value = participant.participantStatus || 'ผ่านการอบรม';
+    document.getElementById('editParticipantModal').classList.remove('hidden');
+  }
+
+  function closeParticipantModal() { document.getElementById('editParticipantModal').classList.add('hidden'); }
+
+  function handleSaveParticipant(event) {
+    event.preventDefault();
+    const participantId = document.getElementById('editParticipantId').value;
+    const updates = {
+      prefixName: document.getElementById('editParticipantPrefix').value,
+      firstName: document.getElementById('editParticipantFirst').value,
+      lastName: document.getElementById('editParticipantLast').value,
+      school: document.getElementById('editParticipantSchool').value,
+      participantStatus: document.getElementById('editParticipantStatus').value
+    };
+    callApi('updateParticipant', { participantId, updates })
+      .then(() => { closeParticipantModal(); loadParticipantsList(); showAlert('แก้ไขผู้เข้าร่วมเรียบร้อย'); })
+      .catch(err => showAlert(`แก้ไขไม่สำเร็จ: ${err.message}`, true));
   }
 
   function openImportModal() {
@@ -610,6 +728,40 @@
         participantStatus: parts[4] || 'ผ่านการอบรม'
       };
     });
+  }
+
+  function handleImportFile(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (typeof XLSX === 'undefined') return showAlert('ตัวอ่านไฟล์ XLSX โหลดไม่สำเร็จ', true);
+    const reader = new FileReader();
+    reader.onload = function(loadEvent) {
+      try {
+        const workbook = XLSX.read(loadEvent.target.result, { type: 'array' });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        if (!matrix.length) throw new Error('ไฟล์ไม่มีข้อมูล');
+        const aliases = {
+          prefixName: ['prefixname', 'คำนำหน้า'],
+          firstName: ['firstname', 'ชื่อ'],
+          lastName: ['lastname', 'นามสกุล'],
+          school: ['school', 'โรงเรียน', 'สถานศึกษา', 'หน่วยงาน'],
+          participantStatus: ['participantstatus', 'สถานะ']
+        };
+        const normalizedHeader = matrix[0].map(value => String(value).toLowerCase().replace(/[\s_-]/g, ''));
+        const indices = Object.keys(aliases).map(key => normalizedHeader.findIndex(value => aliases[key].includes(value)));
+        const hasHeader = indices[1] >= 0 && indices[2] >= 0;
+        const mappedIndices = hasHeader ? indices : [0, 1, 2, 3, 4];
+        const dataRows = (hasHeader ? matrix.slice(1) : matrix)
+          .filter(row => row.some(value => String(value).trim()))
+          .map(row => mappedIndices.map((index, fieldIndex) => index >= 0 ? row[index] : (fieldIndex === 4 ? 'ผ่านการอบรม' : '')));
+        document.getElementById('importTextData').value = dataRows.map(row => row.join('\t')).join('\n');
+        document.getElementById('importMappingStatus').textContent = `อ่าน ${dataRows.length} แถว — ${hasHeader ? 'จับคู่หัวคอลัมน์อัตโนมัติแล้ว' : 'ใช้ลำดับคอลัมน์มาตรฐาน 5 ช่อง'}`;
+      } catch (error) {
+        showAlert(`อ่านไฟล์ไม่สำเร็จ: ${error.message}`, true);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   }
 
   function handleValidateImportBtn() {
@@ -691,7 +843,7 @@
   }
 
   function loadCertificatesActivitiesDropdown() {
-    callApi('activities')
+    callApi('getActivities')
       .then((activities) => {
         CertiFlowState.activities = activities || [];
         const select = document.getElementById('certActivitySelect');
@@ -737,10 +889,11 @@
           </span>
         </td>
         <td class="px-4 py-3 text-right space-x-1.5">
-          ${c.certificateStatus !== 'ISSUED' ? `<button onclick="handleIssueCert('${c.certificateId}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium">⚡ ออกเลข</button>` : ''}
+          ${['DRAFT', 'PENDING'].includes(c.certificateStatus) ? `<button onclick="handleIssueCert('${c.certificateId}')" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-medium">⚡ ออกเลข</button>` : ''}
           <button onclick="openEditCertModal('${c.certificateId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium">✏️ แก้ไข</button>
-          ${c.certificateStatus === 'ISSUED' ? `<button onclick="downloadCertBlob('${c.certificateId}', 'pdf')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium">📄 PDF</button>` : ''}
-          ${c.certificateStatus !== 'REVOKED' ? `<button onclick="openRevokeCertModal('${c.certificateId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">⚠ ยกเลิก</button>` : ''}
+          ${c.certificateStatus === 'ISSUED' ? `<button onclick="previewCertBlob('${c.certificateId}')" class="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-xs font-medium">👁 ตัวอย่าง</button><button onclick="downloadCertBlob('${c.certificateId}', 'pdf')" class="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium">📄 PDF</button><button onclick="openRevokeCertModal('${c.certificateId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">⚠ ยกเลิก</button>` : ''}
+          ${c.certificateStatus === 'REVOKED' ? `<button onclick="openReissueCertModal('${c.certificateId}')" class="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium">♻ ออกใหม่</button>` : ''}
+          ${CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN' && ['DRAFT', 'PENDING'].includes(c.certificateStatus) ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-medium">🗑 ลบ</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -768,6 +921,43 @@
         loadCertificatesList();
       })
       .catch((err) => showAlert(`ออกเลขไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function startAssignNumberQueue() {
+    const activityId = document.getElementById('certActivitySelect').value;
+    if (!activityId) return showAlert('กรุณาเลือกกิจกรรมก่อนออกเลขแบบชุด', true);
+    if (!CertiFlowState.certificates.length) return showAlert('ไม่พบรายการสำหรับประมวลผล', true);
+    callApi('assignNumbers', { activityId, startRow: 1 })
+      .then(job => processGenerationQueue(job.queueId))
+      .catch(err => showAlert(`สร้างคิวไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function processGenerationQueue(queueId) {
+    const box = document.getElementById('generationQueueStatus');
+    if (box) {
+      box.classList.remove('hidden');
+      box.textContent = 'กำลังประมวลผลคิว...';
+    }
+    callApi('processGenerationQueue', { queueId })
+      .then(job => {
+        if (!job) throw new Error('ไม่พบคิว');
+        if (box) box.textContent = `ความคืบหน้า ${job.progressPercent || 0}% — สำเร็จ ${job.successCount || 0}, ล้มเหลว ${job.failCount || 0}${job.lastError ? ` (${job.lastError})` : ''}`;
+        if (job.status === 'DONE' || job.status === 'CANCELLED') {
+          loadCertificatesList();
+          return;
+        }
+        window.setTimeout(() => processGenerationQueue(queueId), 500);
+      })
+      .catch(err => {
+        if (box) box.textContent = `คิวล้มเหลว: ${err.message}`;
+      });
+  }
+
+  function handleDeleteCert(certificateId) {
+    if (!confirm(`ลบ ${certificateId} หรือไม่? ทำได้เฉพาะใบที่ยังไม่เคยออกเลข`)) return;
+    callApi('deleteCertificate', { certificateId })
+      .then(() => { showAlert('ลบรายการเรียบร้อย'); loadCertificatesList(); })
+      .catch(err => showAlert(`ลบไม่สำเร็จ: ${err.message}`, true));
   }
 
   function openEditCertModal(certificateId) {
@@ -837,23 +1027,95 @@
       .catch((err) => showAlert(`ยกเลิกล้มเหลว: ${err.message}`, true));
   }
 
+  function openReissueCertModal(certificateId) {
+    document.getElementById('reissueCertId').value = certificateId;
+    document.getElementById('lblReissueCertId').textContent = certificateId;
+    document.getElementById('reissueReasonText').value = '';
+
+    const modal = document.getElementById('reissueCertModal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeReissueCertModal() {
+    const modal = document.getElementById('reissueCertModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function handleConfirmReissue(e) {
+    e.preventDefault();
+    const certificateId = document.getElementById('reissueCertId').value;
+    const reason = document.getElementById('reissueReasonText').value.trim();
+
+    callApi('reissueCertificate', { certificateId, reason })
+      .then(() => {
+        showAlert(`ออกเกียรติบัตรใหม่แทน ${certificateId} เรียบร้อยแล้ว กรุณากด "ออกเลข" เพื่อกำหนดเลขที่ใหม่`);
+        closeReissueCertModal();
+        loadCertificatesList();
+      })
+      .catch((err) => showAlert(`ออกใหม่ล้มเหลว: ${err.message}`, true));
+  }
+
   /* ==========================================================================
      6. SETTINGS & AUDIT LOGS MANAGEMENT
      ========================================================================== */
 
   function initSettingsPage() {
+    loadSettingsForm();
+    loadCertificateReports();
     loadUsersList();
     loadAuditLogsList();
+  }
+
+  function loadCertificateReports() {
+    callApi('getReports').then(reports => {
+      const tbody = document.getElementById('certificateReportsBody');
+      if (!tbody) return;
+      tbody.innerHTML = reports.length ? reports.map(report => `<tr class="border-t"><td class="p-2 font-mono">${escapeHtml(report.certificateId)}</td><td class="p-2">${escapeHtml(report.message)}</td><td class="p-2">${escapeHtml(report.contact || '—')}</td><td class="p-2 text-center">${escapeHtml(report.status)}</td><td class="p-2">${report.status === 'OPEN' ? `<button onclick="resolveCertificateReport('${report.reportId}')" class="text-emerald-700 underline">ปิดเรื่อง</button>` : ''}</td></tr>`).join('') : '<tr><td colspan="5" class="p-4 text-center text-slate-400">ไม่มีรายงาน</td></tr>';
+    }).catch(err => console.log('Reports load error:', err));
+  }
+
+  function resolveCertificateReport(reportId) {
+    callApi('resolveReport', { reportId })
+      .then(() => loadCertificateReports())
+      .catch(err => showAlert(`ปิดรายงานไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function loadSettingsForm() {
+    callApi('getSettings').then(settings => {
+      document.getElementById('cfgSystemName').value = settings.SYSTEM_NAME || '';
+      document.getElementById('cfgOrganization').value = settings.ORGANIZATION || '';
+      document.getElementById('cfgWebAppUrl').value = settings.WEB_APP_URL || '';
+      document.getElementById('cfgTemplateFolder').value = settings.TEMPLATE_FOLDER_ID || '';
+      document.getElementById('cfgTempFolder').value = settings.TEMP_FOLDER_ID || '';
+      document.getElementById('cfgTimezone').value = settings.DEFAULT_TIMEZONE || 'Asia/Bangkok';
+      document.getElementById('cfgDbId').textContent = settings.DATABASE_SPREADSHEET_ID_MASKED || 'ยังไม่ตั้งค่า';
+    }).catch(err => showAlert(`โหลด Settings ไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function handleSaveSettings(event) {
+    event.preventDefault();
+    const settings = {
+      SYSTEM_NAME: document.getElementById('cfgSystemName').value,
+      ORGANIZATION: document.getElementById('cfgOrganization').value,
+      WEB_APP_URL: document.getElementById('cfgWebAppUrl').value,
+      TEMPLATE_FOLDER_ID: document.getElementById('cfgTemplateFolder').value,
+      TEMP_FOLDER_ID: document.getElementById('cfgTempFolder').value,
+      DEFAULT_TIMEZONE: document.getElementById('cfgTimezone').value
+    };
+    callApi('updateSettings', { settings })
+      .then(() => showAlert('บันทึกการตั้งค่าเรียบร้อย'))
+      .catch(err => showAlert(`บันทึก Settings ไม่สำเร็จ: ${err.message}`, true));
   }
 
   function loadUsersList() {
     callApi('getUsers')
       .then((users) => {
+        CertiFlowState.users = users || [];
         const tbody = document.getElementById('userTableBody');
         if (!tbody) return;
 
         if (!users || users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">ยังไม่มีผู้ใช้งานในระบบ</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-slate-400">ยังไม่มีผู้ใช้งานในระบบ</td></tr>';
           return;
         }
 
@@ -868,14 +1130,28 @@
               <span class="px-2 py-0.5 rounded text-xs font-semibold ${u.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}">${escapeHtml(u.status)}</span>
             </td>
             <td class="px-4 py-2.5 text-xs text-slate-500">${escapeHtml(u.lastLogin || '-')}</td>
+            <td class="px-4 py-2.5 text-right"><button onclick="openUserModal('${escapeHtml(u.userId)}')" class="px-2 py-1 bg-slate-100 rounded">แก้ไข</button></td>
           </tr>
         `).join('');
       })
       .catch((err) => console.log('Users load error:', err));
   }
 
-  function openUserModal() {
+  function openUserModal(userId = '') {
     const modal = document.getElementById('userModal');
+    const user = CertiFlowState.users.find(item => item.userId === userId);
+    document.getElementById('userForm').reset();
+    document.getElementById('userModalTitle').textContent = user ? `แก้ไขผู้ใช้ ${user.userId}` : 'เพิ่มผู้ใช้ใหม่';
+    document.getElementById('usrUserId').readOnly = !!user;
+    document.getElementById('usrPassword').required = !user;
+    document.getElementById('usrPassword').placeholder = user ? 'เว้นว่างหากไม่เปลี่ยนรหัสผ่าน' : '';
+    if (user) {
+      document.getElementById('usrUserId').value = user.userId;
+      document.getElementById('usrName').value = user.name || '';
+      document.getElementById('usrEmail').value = user.email || '';
+      document.getElementById('usrRole').value = user.role;
+      document.getElementById('usrStatus').value = user.status;
+    }
     if (modal) modal.classList.remove('hidden');
   }
 
@@ -889,9 +1165,10 @@
     const payload = {
       userId: document.getElementById('usrUserId').value,
       name: document.getElementById('usrName').value,
+      email: document.getElementById('usrEmail').value,
       password: document.getElementById('usrPassword').value,
       role: document.getElementById('usrRole').value,
-      status: 'ACTIVE'
+      status: document.getElementById('usrStatus').value
     };
 
     callApi('manageUser', payload)
@@ -905,28 +1182,47 @@
   }
 
   function loadAuditLogsList() {
-    callApi('getAuditLogs')
+    const payload = {
+      action: document.getElementById('auditActionFilter') ? document.getElementById('auditActionFilter').value : '',
+      entityType: document.getElementById('auditEntityFilter') ? document.getElementById('auditEntityFilter').value : '',
+      actor: document.getElementById('auditActorFilter') ? document.getElementById('auditActorFilter').value : ''
+    };
+    callApi('getAuditLogs', payload)
       .then((data) => {
         const tbody = document.getElementById('auditLogsTableBody');
         if (!tbody) return;
 
         const logs = data.logs || [];
+        CertiFlowState.auditLogs = logs;
         if (logs.length === 0) {
           tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-4 text-center text-slate-400 font-sans">ยังไม่มี Audit Logs บันทึกไว้</td></tr>';
           return;
         }
 
-        tbody.innerHTML = logs.map(l => `
+        tbody.innerHTML = logs.map((l, index) => `
           <tr>
             <td class="px-3 py-2 text-slate-500">${escapeHtml(l.logId)}</td>
             <td class="px-3 py-2 font-bold text-indigo-600">${escapeHtml(l.action)}</td>
             <td class="px-3 py-2 text-slate-700">${escapeHtml(l.entityType)} (${escapeHtml(l.entityId)})</td>
             <td class="px-3 py-2 text-slate-600">${escapeHtml(l.actorEmail)}</td>
-            <td class="px-3 py-2 text-slate-600 font-sans">${escapeHtml(l.note || '-')}</td>
+            <td class="px-3 py-2 text-slate-600 font-sans">${escapeHtml(l.note || '-')} <button onclick="showAuditDetail(${index})" class="text-indigo-600 underline">before/after</button></td>
             <td class="px-3 py-2 text-slate-400 text-[10px]">${escapeHtml(l.createdAt)}</td>
           </tr>
         `).join('');
       })
       .catch((err) => console.log('Audit logs error:', err));
+  }
+
+  function showAuditDetail(index) {
+    const log = (CertiFlowState.auditLogs || [])[index];
+    if (!log) return;
+    const pre = document.createElement('pre');
+    pre.className = 'text-xs whitespace-pre-wrap text-left w-full bg-slate-50 p-4 rounded';
+    const pretty = value => {
+      try { return JSON.stringify(JSON.parse(value || '{}'), null, 2); }
+      catch (e) { return value || '—'; }
+    };
+    pre.textContent = `BEFORE\n${pretty(log.beforeJson)}\n\nAFTER\n${pretty(log.afterJson)}`;
+    openMediaModal(`Audit ${log.logId}`, pre);
   }
 </script>

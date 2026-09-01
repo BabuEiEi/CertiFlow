@@ -18,6 +18,10 @@ const SearchService = {
     const cleanQuery = typeof Validation !== 'undefined'
       ? Validation.normalizeNameForSearch(query)
       : String(query || '').trim().toLowerCase();
+    if (cleanQuery.length > 100) throw new Error('คำค้นหายาวเกิน 100 ตัวอักษร');
+    if (!activityId && cleanQuery.length < 2) {
+      throw new Error('กรุณาระบุคำค้นหาอย่างน้อย 2 ตัวอักษร หรือเลือกกิจกรรม');
+    }
 
     let certs = CertificateService.getCertificates(activityId);
 
@@ -46,8 +50,10 @@ const SearchService = {
     const paginatedCerts = certs.slice(startIndex, startIndex + limit);
 
     // Sanitize results for Public View (exclude internal metadata & Audit details)
+    const activityMap = new Map((typeof ActivityService !== 'undefined' ? ActivityService.getActivities() : [])
+      .map(activity => [String(activity.activityId).trim(), activity]));
     const results = paginatedCerts.map(c => {
-      const activity = typeof ActivityService !== 'undefined' ? ActivityService.getActivityById(c.activityId) : null;
+      const activity = activityMap.get(String(c.activityId).trim()) || null;
       return {
         certificateId: c.certificateId,
         activityId: c.activityId,
@@ -58,7 +64,8 @@ const SearchService = {
         participantStatus: c.participantStatus,
         issueDate: activity ? activity.issueDate : '',
         issueAgency: activity ? activity.issueAgency : '',
-        certificateStatus: c.certificateStatus
+        certificateStatus: c.certificateStatus,
+        verificationUrl: this.getVerificationUrl(c.certificateId)
       };
     });
 
@@ -76,8 +83,12 @@ const SearchService = {
    * @return {string}
    */
   getVerificationUrl(certificateId) {
-    const baseUrl = Config.get(Config.KEYS.WEB_APP_URL) || 'https://script.google.com/macros/s/DEPLOYMENT/exec';
-    return `${baseUrl}?page=verify&id=${encodeURIComponent(certificateId)}`;
+    const deployedUrl = typeof ScriptApp !== 'undefined' && ScriptApp.getService
+      ? ScriptApp.getService().getUrl()
+      : '';
+    const baseUrl = Config.get(Config.KEYS.WEB_APP_URL) || deployedUrl;
+    if (!baseUrl) return '';
+    return `${baseUrl.replace(/\/+$/, '')}?page=verify&id=${encodeURIComponent(certificateId)}`;
   },
 
   /**
@@ -112,9 +123,7 @@ const SearchService = {
       certificateId: cert.certificateId,
       certificateNo: cert.certificateNo || 'ยังไม่ออกเลขที่',
       fullName: Validation.formatName(cert.prefixName, cert.firstName, cert.lastName),
-      school: cert.school,
       activityName: activity ? activity.activityName : '',
-      organizer: activity ? activity.organizer : '',
       issueAgency: activity ? activity.issueAgency : '',
       issueDate: activity ? activity.issueDate : '',
       status: cert.certificateStatus

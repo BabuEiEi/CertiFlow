@@ -13,6 +13,34 @@ const Validation = {
   },
 
   /**
+   * Sanitize untrusted text before writing it to Google Sheets. Values that
+   * begin with a spreadsheet formula marker are prefixed with an apostrophe so
+   * they are stored as text instead of being evaluated as formulas.
+   * @param {*} value
+   * @return {string}
+   */
+  sanitizeSheetText(value) {
+    const text = this.sanitizeText(value);
+    return /^[=+\-@]/.test(text) ? `'${text}` : text;
+  },
+
+  /**
+   * Parse a positive integer with explicit bounds.
+   * @param {*} value
+   * @param {string} fieldName
+   * @param {number} min
+   * @param {number} max
+   * @return {number}
+   */
+  parseInteger(value, fieldName, min = 0, max = Number.MAX_SAFE_INTEGER) {
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < min || parsed > max) {
+      throw new Error(`${fieldName} ต้องเป็นจำนวนเต็มระหว่าง ${min} ถึง ${max}`);
+    }
+    return parsed;
+  },
+
+  /**
    * Format full name from prefixName, firstName, lastName
    * @param {string} prefixName
    * @param {string} firstName
