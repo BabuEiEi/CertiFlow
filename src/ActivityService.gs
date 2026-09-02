@@ -167,16 +167,34 @@ const ActivityService = {
     if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN]);
     const activity = this.getActivityById(activityId);
     if (!activity || !activity._rowIndex) throw new Error('ไม่พบกิจกรรม');
-    const hasParticipants = typeof ParticipantService !== 'undefined' && ParticipantService.getParticipants(activityId).length > 0;
-    const hasCertificates = typeof CertificateService !== 'undefined' && CertificateService.getAllCertificates().some(cert => String(cert.activityId).trim() === String(activityId).trim());
-    if (hasParticipants || hasCertificates) {
+
+    const participants = typeof ParticipantService !== 'undefined' ? ParticipantService.getParticipants(activityId) : [];
+    const certificates = typeof CertificateService !== 'undefined'
+      ? CertificateService.getAllCertificates().filter(cert => String(cert.activityId).trim() === String(activityId).trim())
+      : [];
+    const hasReferences = participants.length > 0 || certificates.length > 0;
+
+    if (hasReferences && activity.status !== Config.ACTIVITY_STATUS.CLOSED) {
       throw new Error('กิจกรรมนี้มีข้อมูลผู้เข้าร่วมหรือเกียรติบัตรอ้างอิงอยู่แล้ว ไม่สามารถลบถาวรได้ กรุณาปิด (CLOSED) แทน');
     }
+
+    // Cascade delete rows tied to this activity, highest row index first so earlier indices stay valid.
+    [Config.SHEETS.CERTIFICATES, Config.SHEETS.PARTICIPANTS].forEach((sheetName, idx) => {
+      const rows = idx === 0 ? certificates : participants;
+      rows.map(r => r._rowIndex).sort((a, b) => b - a).forEach(rowIndex => {
+        SheetService.deleteRows(sheetName, rowIndex, 1);
+      });
+    });
+
     SheetService.deleteRows(Config.SHEETS.ACTIVITIES, activity._rowIndex, 1);
+
     if (typeof AuditService !== 'undefined') {
-      AuditService.log(AuditService.ACTIONS.DELETE_ACTIVITY, 'Activity', activityId, activity, null, `Deleted empty activity ${activityId}`);
+      const detail = hasReferences
+        ? `Deleted CLOSED activity ${activityId} with cascade removal of ${participants.length} participant(s) and ${certificates.length} certificate(s)`
+        : `Deleted empty activity ${activityId}`;
+      AuditService.log(AuditService.ACTIONS.DELETE_ACTIVITY, 'Activity', activityId, activity, null, detail);
     }
-    return { activityId, deleted: true };
+    return { activityId, deleted: true, cascaded: hasReferences, participantsDeleted: participants.length, certificatesDeleted: certificates.length };
   }
 };
 

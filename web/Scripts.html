@@ -677,7 +677,11 @@
   }
 
   function deleteActivity(activityId) {
-    showConfirm(`ลบกิจกรรม ${activityId} หรือไม่? ระบบจะปฏิเสธหากมีข้อมูลอ้างอิง`).then((ok) => {
+    const act = CertiFlowState.activities.find(a => a.activityId === activityId);
+    const warning = act && act.status === 'CLOSED'
+      ? `ลบกิจกรรม ${activityId} หรือไม่? กิจกรรมนี้ปิดแล้ว (CLOSED) — หากมีผู้เข้าร่วม/เกียรติบัตรผูกอยู่ จะถูกลบตามไปด้วยทั้งหมด และกู้คืนไม่ได้`
+      : `ลบกิจกรรม ${activityId} หรือไม่? ระบบจะปฏิเสธหากมีข้อมูลอ้างอิงและยังไม่ได้ปิด (CLOSED)`;
+    showConfirm(warning).then((ok) => {
       if (!ok) return;
       callApi('deleteActivity', { activityId })
         .then(() => { showAlert('ลบกิจกรรมเรียบร้อย'); loadActivitiesList(); })
@@ -1062,7 +1066,7 @@
           <button onclick="openEditCertModal('${c.certificateId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium">แก้ไข</button>
           ${c.certificateStatus === 'ISSUED' ? `<button onclick="previewCertBlob('${c.certificateId}')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">ตัวอย่าง</button><button onclick="downloadCertBlob('${c.certificateId}', 'pdf')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">PDF</button><button onclick="openRevokeCertModal('${c.certificateId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ยกเลิก</button>` : ''}
           ${c.certificateStatus === 'REVOKED' ? `<button onclick="openReissueCertModal('${c.certificateId}')" class="px-2 py-1 bg-gold-50 hover:bg-gold-100 text-gold-800 border border-gold-300 rounded text-xs font-medium">ออกใหม่</button>` : ''}
-          ${CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN' && ['DRAFT', 'PENDING'].includes(c.certificateStatus) ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>` : ''}
+          ${CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN' && ['DRAFT', 'PENDING', 'REVOKED'].includes(c.certificateStatus) ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -1176,7 +1180,7 @@
   }
 
   function handleDeleteCert(certificateId) {
-    showConfirm(`ลบ ${certificateId} หรือไม่? ทำได้เฉพาะใบที่ยังไม่เคยออกเลข`).then((ok) => {
+    showConfirm(`ลบ ${certificateId} ถาวรหรือไม่? ทำได้เฉพาะใบที่ยังไม่เคยออกเลข (DRAFT/PENDING) หรือถูกยกเลิกแล้ว (REVOKED) และกู้คืนไม่ได้`).then((ok) => {
       if (!ok) return;
       callApi('deleteCertificate', { certificateId })
         .then(() => { showAlert('ลบรายการเรียบร้อย'); loadCertificatesList(); })
