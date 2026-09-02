@@ -317,8 +317,8 @@ const CertificateService = {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }
 
-    if (![Config.CERT_STATUS.DRAFT, Config.CERT_STATUS.PENDING].includes(cert.certificateStatus)) {
-      throw new Error('เกียรติบัตรที่เคยออกแล้วต้องใช้ REVOKED เพื่อรักษาหลักฐาน ห้ามลบถาวร');
+    if (![Config.CERT_STATUS.DRAFT, Config.CERT_STATUS.PENDING, Config.CERT_STATUS.REVOKED].includes(cert.certificateStatus)) {
+      throw new Error('เกียรติบัตรที่ยังใช้งานอยู่ (ISSUED) ต้องยกเลิก (REVOKED) ก่อน จึงจะลบถาวรได้');
     }
 
     const beforeObj = JSON.parse(JSON.stringify(cert));
