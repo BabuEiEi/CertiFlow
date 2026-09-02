@@ -14,10 +14,11 @@ const CertificateService = {
   /**
    * Get certificate by ID
    * @param {string} certificateId
+   * @param {Array<Object>} [cache] Pre-read registry rows, so bulk callers avoid one sheet read per item
    * @return {Object|null}
    */
-  getById(certificateId) {
-    const certs = this.getAllCertificates();
+  getById(certificateId, cache) {
+    const certs = cache || this.getAllCertificates();
     const cleanId = String(certificateId || '').trim();
     return certs.find(c => String(c.certificateId).trim() === cleanId) || null;
   },
@@ -193,9 +194,10 @@ const CertificateService = {
    * Revoke certificate
    * @param {string} certificateId
    * @param {string} reason
+   * @param {Array<Object>} [cache] Pre-read registry rows for bulk callers
    * @return {Object}
    */
-  revokeCertificate(certificateId, reason) {
+  revokeCertificate(certificateId, reason, cache) {
     if (typeof AuthService !== 'undefined') {
       AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
     }
@@ -204,7 +206,7 @@ const CertificateService = {
       throw new Error('กรุณาระบุเหตุผลการยกเลิกเกียรติบัตร');
     }
 
-    const cert = this.getById(certificateId);
+    const cert = this.getById(certificateId, cache);
     if (!cert) {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }
@@ -244,8 +246,66 @@ const CertificateService = {
   },
 
   /**
-   * Reissue a revoked certificate: returns it to DRAFT so it can be issued again
-   * (a fresh number is generated on the next issueCertificate call, preserving history).
+   * Bulk revoke: revokes every given certificate under one shared registry read.
+   * Never aborts the whole batch on a single bad row — each failure is reported per item.
+   * @param {Array<string>} certificateIds
+   * @param {string} reason
+   * @return {{total: number, successCount: number, failCount: number, results: Array<Object>}}
+   */
+  revokeCertificates(certificateIds, reason) {
+    if (typeof AuthService !== 'undefined') {
+      AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
+    }
+    if (!reason || String(reason).trim() === '') {
+      throw new Error('กรุณาระบุเหตุผลการยกเลิกเกียรติบัตร');
+    }
+    return this.runBulk(certificateIds, (id, cache) => this.revokeCertificate(id, reason, cache));
+  },
+
+  /**
+   * Bulk permanent delete (ADMIN only), same per-item error reporting as revokeCertificates.
+   * @param {Array<string>} certificateIds
+   * @return {{total: number, successCount: number, failCount: number, results: Array<Object>}}
+   */
+  deleteCertificates(certificateIds) {
+    if (typeof AuthService !== 'undefined') {
+      AuthService.requireRole([Config.ROLES.ADMIN]);
+    }
+    return this.runBulk(certificateIds, (id, cache) => this.deleteCertificate(id, cache));
+  },
+
+  /**
+   * Shared driver for the bulk actions: one registry read, one pass, per-item outcome.
+   * @param {Array<string>} certificateIds
+   * @param {Function} handler (certificateId, cache) => void
+   * @return {{total: number, successCount: number, failCount: number, results: Array<Object>}}
+   */
+  runBulk(certificateIds, handler) {
+    const ids = (Array.isArray(certificateIds) ? certificateIds : [])
+      .map(id => String(id || '').trim())
+      .filter(id => id !== '');
+    if (!ids.length) {
+      throw new Error('กรุณาเลือกเกียรติบัตรอย่างน้อย 1 รายการ');
+    }
+
+    const cache = this.getAllCertificates();
+    const results = ids.map(certificateId => {
+      try {
+        handler(certificateId, cache);
+        return { certificateId, success: true, error: '' };
+      } catch (err) {
+        return { certificateId, success: false, error: err && err.message ? err.message : String(err) };
+      }
+    });
+
+    const successCount = results.filter(item => item.success).length;
+    return { total: results.length, successCount, failCount: results.length - successCount, results };
+  },
+
+  /**
+   * Reissue a revoked certificate: returns it to DRAFT so it can be issued again,
+   * keeping the original certificate number — the number stays bound to this record
+   * for life and is only ever given up by deleting the record.
    * @param {string} certificateId
    * @param {string} reason
    * @return {Object}
@@ -275,8 +335,8 @@ const CertificateService = {
     const reissuedCert = {
       ...cert,
       certificateStatus: Config.CERT_STATUS.DRAFT,
-      certificateNo: '',
-      runningNumber: '',
+      // certificateNo / runningNumber are deliberately preserved: reissuing must never
+      // consume a new number from the activity range.
       issuedAt: '',
       issuedBy: '',
       revokedAt: '',
@@ -295,7 +355,7 @@ const CertificateService = {
         certificateId,
         beforeObj,
         reissuedCert,
-        `Reissued certificate ${certificateId}. Reason: ${reason}`
+        `Reissued certificate ${certificateId} keeping certNo ${cert.certificateNo || '-'}. Reason: ${reason}`
       );
     }
 
@@ -305,14 +365,15 @@ const CertificateService = {
   /**
    * Permanent delete certificate (ADMIN only!)
    * @param {string} certificateId
+   * @param {Array<Object>} [cache] Pre-read registry rows for bulk callers
    * @return {Object}
    */
-  deleteCertificate(certificateId) {
+  deleteCertificate(certificateId, cache) {
     if (typeof AuthService !== 'undefined') {
       AuthService.requireRole([Config.ROLES.ADMIN]);
     }
 
-    const cert = this.getById(certificateId);
+    const cert = this.getById(certificateId, cache);
     if (!cert) {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }

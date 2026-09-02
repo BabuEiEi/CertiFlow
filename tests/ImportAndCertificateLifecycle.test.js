@@ -66,7 +66,7 @@ function testCertificateLifecycleAndOriginalName() {
   CertificateService.getAllCertificates = () => [{ ...mockCert, certificateStatus: Config.CERT_STATUS.DRAFT }];
   assert.throws(() => CertificateService.revokeCertificate('CERT-ACT001-000001', 'ไม่ควรได้'), /เฉพาะเกียรติบัตรสถานะ ISSUED/);
   CertificateService.getAllCertificates = () => [{ ...mockCert, certificateStatus: Config.CERT_STATUS.ISSUED }];
-  assert.throws(() => CertificateService.deleteCertificate('CERT-ACT001-000001'), /ต้องใช้ REVOKED/);
+  assert.throws(() => CertificateService.deleteCertificate('CERT-ACT001-000001'), /ต้องยกเลิก \(REVOKED\) ก่อน/);
 
   console.log('Certificate lifecycle and original name test passed.');
 }
@@ -97,9 +97,16 @@ function testCertificateReissue() {
 
   const reissued = CertificateService.reissueCertificate('CERT-ACT001-000001', 'ออกให้ใหม่ตามคำร้อง');
   assert.equal(reissued.certificateStatus, Config.CERT_STATUS.DRAFT, 'Status should return to DRAFT');
-  assert.equal(reissued.certificateNo, '', 'certificateNo should be cleared for reallocation');
+  assert.equal(reissued.certificateNo, 'เลขที่ 0001/2569', 'certificateNo must be kept on reissue');
+  assert.equal(reissued.runningNumber, 1, 'runningNumber must be kept on reissue');
   assert.equal(reissued.revokedAt, '', 'revokedAt should be cleared');
   assert.equal(reissued.revokeReason, '', 'revokeReason should be cleared');
+
+  // Re-issuing the kept number must not be blocked by the duplicate guard (only itself holds it).
+  CertificateService.getAllCertificates = () => [reissued];
+  const issuedAgain = CertificateService.issueCertificate('CERT-ACT001-000001');
+  assert.equal(issuedAgain.certificateStatus, Config.CERT_STATUS.ISSUED, 'Reissued certificate should be issuable again');
+  assert.equal(issuedAgain.certificateNo, 'เลขที่ 0001/2569', 'Issuing after reissue must not consume a new number');
 
   CertificateService.getAllCertificates = () => [{ ...revokedCert, certificateStatus: Config.CERT_STATUS.ISSUED }];
   assert.throws(() => CertificateService.reissueCertificate('CERT-ACT001-000001', 'ไม่ควรได้'), /เฉพาะเกียรติบัตรสถานะ REVOKED/);
@@ -107,6 +114,39 @@ function testCertificateReissue() {
   console.log('Certificate reissue test passed.');
 }
 
+function testBulkRevokeAndDelete() {
+  const rows = [
+    { _rowIndex: 2, certificateId: 'CERT-ACT001-000001', activityId: 'ACT001', certificateNo: 'เลขที่ 0001/2569', firstName: 'ก', lastName: 'ข', certificateStatus: Config.CERT_STATUS.ISSUED },
+    { _rowIndex: 3, certificateId: 'CERT-ACT001-000002', activityId: 'ACT001', certificateNo: 'เลขที่ 0002/2569', firstName: 'ค', lastName: 'ง', certificateStatus: Config.CERT_STATUS.ISSUED },
+    { _rowIndex: 4, certificateId: 'CERT-ACT001-000003', activityId: 'ACT001', certificateNo: '', firstName: 'จ', lastName: 'ฉ', certificateStatus: Config.CERT_STATUS.DRAFT }
+  ];
+
+  let readCount = 0;
+  CertificateService.getAllCertificates = () => { readCount++; return rows; };
+  CertificateService.saveCertificateRow = () => {};
+
+  assert.throws(() => CertificateService.revokeCertificates([], 'เหตุผล'), /อย่างน้อย 1 รายการ/);
+  assert.throws(() => CertificateService.revokeCertificates(['CERT-ACT001-000001'], ''), /กรุณาระบุเหตุผล/);
+
+  readCount = 0;
+  const revokeResult = CertificateService.revokeCertificates(
+    ['CERT-ACT001-000001', 'CERT-ACT001-000002', 'CERT-ACT001-000003', 'CERT-MISSING'],
+    'ยกเลิกทั้งชุด'
+  );
+  assert.equal(revokeResult.total, 4, 'Bulk revoke should report every requested id');
+  assert.equal(revokeResult.successCount, 2, 'Only the two ISSUED rows can be revoked');
+  assert.equal(revokeResult.failCount, 2, 'DRAFT row and missing id must fail individually');
+  assert.equal(readCount, 1, 'Bulk revoke should read the registry only once');
+  assert.match(revokeResult.results[2].error, /เฉพาะเกียรติบัตรสถานะ ISSUED/);
+
+  const deleteResult = CertificateService.deleteCertificates(['CERT-ACT001-000003', 'CERT-ACT001-000001']);
+  assert.equal(deleteResult.successCount, 1, 'Only the DRAFT row is deletable');
+  assert.equal(deleteResult.results[1].success, false, 'ISSUED row must be rejected by bulk delete');
+
+  console.log('Bulk revoke and delete test passed.');
+}
+
 testImportValidationAndDuplicates();
 testCertificateLifecycleAndOriginalName();
 testCertificateReissue();
+testBulkRevokeAndDelete();

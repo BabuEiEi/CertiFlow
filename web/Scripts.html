@@ -11,7 +11,9 @@
     users: [],
     validatedImportData: null,
     currentUser: null,
-    activeQueueId: null
+    activeQueueId: null,
+    selectedCertIds: [],
+    renderedCertIds: []
   };
 
   const AUTH_TOKEN_KEY = 'certiflowAuthToken';
@@ -1031,11 +1033,14 @@
     const status = document.getElementById('certStatusSelect') ? document.getElementById('certStatusSelect').value : '';
     const tbody = document.getElementById('certTableBody');
 
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายการเกียรติบัตร...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายการเกียรติบัตร...</td></tr>';
 
     callApi('getCertificates', { activityId, filter: { status } })
       .then((certificates) => {
         CertiFlowState.certificates = certificates || [];
+        // A reloaded registry invalidates any previous tick marks (rows may be gone or
+        // have changed status), so selection always starts clean after a refresh.
+        CertiFlowState.selectedCertIds = [];
         renderCertificatesTable(certificates);
       })
       .catch((err) => showAlert(`โหลดรายการเกียรติบัตรล้มเหลว: ${err.message}`, true));
@@ -1045,13 +1050,22 @@
     const tbody = document.getElementById('certTableBody');
     if (!tbody) return;
 
+    CertiFlowState.renderedCertIds = (certs || []).map(c => c.certificateId);
+
     if (!certs || certs.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">ไม่พบรายการเกียรติบัตร</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">ไม่พบรายการเกียรติบัตร</td></tr>';
+      updateCertSelectionUi();
       return;
     }
 
+    const isAdmin = !!(CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN');
+
     tbody.innerHTML = certs.map(c => `
       <tr>
+        <td class="px-4 py-3 text-center">
+          <input type="checkbox" class="cert-row-check h-4 w-4 rounded border-slate-300 align-middle" data-cert-id="${escapeHtml(c.certificateId)}"
+            onchange="toggleCertSelection('${c.certificateId}', this.checked)" ${isCertSelected(c.certificateId) ? 'checked' : ''}>
+        </td>
         <td class="px-4 py-3 font-mono text-xs font-bold text-slate-700">${escapeHtml(c.certificateId)}</td>
         <td class="px-4 py-3 font-mono text-xs font-bold text-gold-700">${escapeHtml(c.certificateNo || 'ยังไม่ออกเลข')}</td>
         <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(c.prefixName || '')}${escapeHtml(c.firstName)} ${escapeHtml(c.lastName)}</td>
@@ -1066,10 +1080,139 @@
           <button onclick="openEditCertModal('${c.certificateId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium">แก้ไข</button>
           ${c.certificateStatus === 'ISSUED' ? `<button onclick="previewCertBlob('${c.certificateId}')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">ตัวอย่าง</button><button onclick="downloadCertBlob('${c.certificateId}', 'pdf')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">PDF</button><button onclick="openRevokeCertModal('${c.certificateId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ยกเลิก</button>` : ''}
           ${c.certificateStatus === 'REVOKED' ? `<button onclick="openReissueCertModal('${c.certificateId}')" class="px-2 py-1 bg-gold-50 hover:bg-gold-100 text-gold-800 border border-gold-300 rounded text-xs font-medium">ออกใหม่</button>` : ''}
-          ${CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN' && ['DRAFT', 'PENDING', 'REVOKED'].includes(c.certificateStatus) ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>` : ''}
+          ${isAdmin ? (['DRAFT', 'PENDING', 'REVOKED'].includes(c.certificateStatus)
+            ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>`
+            : `<button disabled title="ต้องยกเลิก (REVOKED) ก่อน จึงจะลบถาวรได้" class="px-2 py-1 bg-slate-100 text-slate-400 rounded text-xs font-medium cursor-not-allowed">ลบ</button>`) : ''}
         </td>
       </tr>
     `).join('');
+
+    updateCertSelectionUi();
+  }
+
+  /* --- Bulk selection in the certificates registry --- */
+
+  function isCertSelected(certificateId) {
+    return (CertiFlowState.selectedCertIds || []).indexOf(certificateId) !== -1;
+  }
+
+  function toggleCertSelection(certificateId, checked) {
+    const selected = CertiFlowState.selectedCertIds || [];
+    const index = selected.indexOf(certificateId);
+    if (checked && index === -1) selected.push(certificateId);
+    if (!checked && index !== -1) selected.splice(index, 1);
+    CertiFlowState.selectedCertIds = selected;
+    updateCertSelectionUi();
+  }
+
+  /** Select-all applies to the rows currently rendered (i.e. after search filtering). */
+  function toggleSelectAllCerts(checked) {
+    (CertiFlowState.renderedCertIds || []).forEach(id => {
+      const index = CertiFlowState.selectedCertIds.indexOf(id);
+      if (checked && index === -1) CertiFlowState.selectedCertIds.push(id);
+      if (!checked && index !== -1) CertiFlowState.selectedCertIds.splice(index, 1);
+    });
+    document.querySelectorAll('.cert-row-check').forEach(box => { box.checked = checked; });
+    updateCertSelectionUi();
+  }
+
+  function clearCertSelection() {
+    CertiFlowState.selectedCertIds = [];
+    document.querySelectorAll('.cert-row-check').forEach(box => { box.checked = false; });
+    updateCertSelectionUi();
+  }
+
+  function updateCertSelectionUi() {
+    const selected = CertiFlowState.selectedCertIds || [];
+    const rendered = CertiFlowState.renderedCertIds || [];
+    const bar = document.getElementById('certBulkBar');
+    const label = document.getElementById('certBulkCount');
+    const selectAll = document.getElementById('certSelectAll');
+
+    if (label) label.textContent = `เลือกไว้ ${selected.length} รายการ`;
+    if (bar) bar.classList.toggle('hidden', selected.length === 0);
+    if (selectAll) {
+      const selectedOnScreen = rendered.filter(id => selected.indexOf(id) !== -1).length;
+      selectAll.checked = rendered.length > 0 && selectedOnScreen === rendered.length;
+      selectAll.indeterminate = selectedOnScreen > 0 && selectedOnScreen < rendered.length;
+    }
+  }
+
+  /** Selected rows split by whether the given statuses allow the action. */
+  function partitionSelectedCerts(allowedStatuses) {
+    const selected = CertiFlowState.selectedCertIds || [];
+    const eligible = [];
+    const skipped = [];
+    selected.forEach(id => {
+      const cert = (CertiFlowState.certificates || []).find(c => c.certificateId === id);
+      if (cert && allowedStatuses.indexOf(cert.certificateStatus) !== -1) eligible.push(id);
+      else skipped.push(`${id} (${cert ? cert.certificateStatus : 'ไม่พบรายการ'})`);
+    });
+    return { eligible, skipped };
+  }
+
+  function reportBulkResult(actionLabel, result) {
+    const failed = (result.results || []).filter(item => !item.success);
+    if (failed.length) {
+      console.log(`${actionLabel} failures:`, failed);
+      showAlert(`${actionLabel}สำเร็จ ${result.successCount} รายการ, ล้มเหลว ${result.failCount} รายการ (เช่น ${failed[0].certificateId}: ${failed[0].error})`, true);
+    } else {
+      showAlert(`${actionLabel}สำเร็จ ${result.successCount} รายการ`);
+    }
+    loadCertificatesList();
+  }
+
+  function openBulkRevokeModal() {
+    const { eligible, skipped } = partitionSelectedCerts(['ISSUED']);
+    if (!eligible.length) {
+      return showAlert('ไม่มีรายการที่ยกเลิกได้ในสิ่งที่เลือก (ยกเลิกได้เฉพาะสถานะ ISSUED)', true);
+    }
+
+    document.getElementById('lblBulkRevokeSummary').textContent = `คุณกำลังยกเลิกเกียรติบัตร ${eligible.length} รายการ`;
+    const skippedBox = document.getElementById('lblBulkRevokeSkipped');
+    skippedBox.classList.toggle('hidden', skipped.length === 0);
+    if (skipped.length) skippedBox.textContent = `ข้าม ${skipped.length} รายการที่ไม่ใช่สถานะ ISSUED: ${skipped.join(', ')}`;
+    document.getElementById('bulkRevokeReasonText').value = '';
+
+    const modal = document.getElementById('bulkRevokeModal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeBulkRevokeModal() {
+    const modal = document.getElementById('bulkRevokeModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function handleConfirmBulkRevoke(e) {
+    e.preventDefault();
+    const reason = document.getElementById('bulkRevokeReasonText').value.trim();
+    const { eligible } = partitionSelectedCerts(['ISSUED']);
+    if (!eligible.length) return showAlert('ไม่มีรายการที่ยกเลิกได้', true);
+
+    callApi('revokeCertificates', { certificateIds: eligible, reason })
+      .then((result) => {
+        closeBulkRevokeModal();
+        reportBulkResult('ยกเลิกเกียรติบัตร', result);
+      })
+      .catch((err) => showAlert(`ยกเลิกแบบชุดล้มเหลว: ${err.message}`, true));
+  }
+
+  function handleBulkDeleteCerts() {
+    if (!CertiFlowState.currentUser || CertiFlowState.currentUser.role !== 'ADMIN') {
+      return showAlert('ลบถาวรได้เฉพาะ ADMIN เท่านั้น', true);
+    }
+    const { eligible, skipped } = partitionSelectedCerts(['DRAFT', 'PENDING', 'REVOKED']);
+    if (!eligible.length) {
+      return showAlert('ไม่มีรายการที่ลบได้ในสิ่งที่เลือก (ลบได้เฉพาะ DRAFT/PENDING/REVOKED)', true);
+    }
+
+    const skipNote = skipped.length ? ` — ข้าม ${skipped.length} รายการที่ยังเป็น ISSUED: ${skipped.join(', ')}` : '';
+    showConfirm(`ลบเกียรติบัตร ${eligible.length} รายการถาวรหรือไม่? กู้คืนไม่ได้${skipNote}`).then((ok) => {
+      if (!ok) return;
+      callApi('deleteCertificates', { certificateIds: eligible })
+        .then((result) => reportBulkResult('ลบเกียรติบัตร', result))
+        .catch((err) => showAlert(`ลบแบบชุดล้มเหลว: ${err.message}`, true));
+    });
   }
 
   function filterCertificatesTable() {
@@ -1275,8 +1418,8 @@
     const reason = document.getElementById('reissueReasonText').value.trim();
 
     callApi('reissueCertificate', { certificateId, reason })
-      .then(() => {
-        showAlert(`ออกเกียรติบัตรใหม่แทน ${certificateId} เรียบร้อยแล้ว กรุณากด "ออกเลข" เพื่อกำหนดเลขที่ใหม่`);
+      .then((reissued) => {
+        showAlert(`ออกเกียรติบัตรใหม่แทน ${certificateId} เรียบร้อยแล้ว ระบบคงเลขที่เดิม ${reissued.certificateNo || '-'} ไว้ กรุณากด "ออกเลข" เพื่อยืนยันการออกอีกครั้ง`);
         closeReissueCertModal();
         loadCertificatesList();
       })

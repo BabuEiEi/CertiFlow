@@ -22,6 +22,37 @@ const ActivityService = {
   },
 
   /**
+   * Identity of the certificate-number series an activity prints into.
+   * Two activities with the same key produce identical certNo strings for the same
+   * running number, so their number ranges must stay disjoint.
+   * @param {Object} activity
+   * @return {string}
+   */
+  numberSeriesKey(activity) {
+    const pick = (value, fallback) => String(value === undefined || value === '' ? fallback : value).trim();
+    return [
+      pick(activity.prefixText, 'เลขที่'),
+      pick(activity.prefix, ''),
+      pick(activity.separator, '/'),
+      pick(activity.year, '2569')
+    ].join('|');
+  },
+
+  /**
+   * Effective number range of a stored activity row, applying the same defaults as saveActivity.
+   * @param {Object} activity
+   * @return {{start: number, end: number}}
+   */
+  numberRangeOf(activity) {
+    const toInt = (value, fallback) => {
+      const parsed = parseInt(value === '' || value === undefined || value === null ? fallback : value, 10);
+      return Number.isFinite(parsed) ? parsed : fallback;
+    };
+    const start = toInt(activity.startNumber, 1);
+    return { start, end: Math.max(start, toInt(activity.endNumber, 9999)) };
+  },
+
+  /**
    * Save (create or update) activity
    * Validates templateId before saving
    * @param {Object} activityData
@@ -102,6 +133,29 @@ const ActivityService = {
         throw new Error('sequence ต้องไม่เกิน endNumber');
       }
 
+      const prefixText = Validation.sanitizeSheetText(merged.prefixText || 'เลขที่');
+      const prefix = Validation.sanitizeSheetText(merged.prefix);
+      const separator = Validation.sanitizeSheetText(merged.separator || '/');
+      const year = Validation.sanitizeSheetText(merged.year || '2569');
+
+      // Activities that share a certificate-number series (prefixText + prefix + separator + year)
+      // render their running numbers into the same string space, so overlapping [start, end]
+      // ranges would eventually hand the identical certNo to two different certificates.
+      const conflict = existingList.find(other => {
+        if (String(other.activityId).trim() === String(activityId).trim()) return false;
+        if (this.numberSeriesKey(other) !== this.numberSeriesKey({ prefixText, prefix, separator, year })) return false;
+        const otherRange = this.numberRangeOf(other);
+        return startNumber <= otherRange.end && endNumber >= otherRange.start;
+      });
+      if (conflict) {
+        const otherRange = this.numberRangeOf(conflict);
+        throw new Error(
+          `ช่วงเลข ${startNumber}-${endNumber} ทับซ้อนกับกิจกรรม '${conflict.activityName}' (${conflict.activityId}) ` +
+          `ที่ใช้ช่วง ${otherRange.start}-${otherRange.end} ในรูปแบบเลขเดียวกัน กรุณาปรับช่วงเลขไม่ให้ทับกัน ` +
+          'หรือเปลี่ยน prefix/ตัวคั่น/ปี ให้ต่างกัน'
+        );
+      }
+
       const activityObj = {
         activityId,
         sequence: requestedSequence,
@@ -111,13 +165,13 @@ const ActivityService = {
         startDate: Validation.sanitizeSheetText(merged.startDate),
         endDate: Validation.sanitizeSheetText(merged.endDate),
         issueDate: Validation.sanitizeSheetText(merged.issueDate),
-        prefixText: Validation.sanitizeSheetText(merged.prefixText || 'เลขที่'),
-        prefix: Validation.sanitizeSheetText(merged.prefix),
+        prefixText,
+        prefix,
         startNumber,
         endNumber,
         digitLength,
-        separator: Validation.sanitizeSheetText(merged.separator || '/'),
-        year: Validation.sanitizeSheetText(merged.year || '2569'),
+        separator,
+        year,
         numberFormat,
         templateId: String(merged.templateId).trim(),
         status,

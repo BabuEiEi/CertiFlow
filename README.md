@@ -468,7 +468,10 @@ getGenerationProgress
 updateCertificate
 issueCertificate
 revokeCertificate
+revokeCertificates
+reissueCertificate
 deleteCertificate
+deleteCertificates
 manageUser
 getAuditLogs
 ```
