@@ -1,0 +1,157 @@
+<!-- User Guide Partial (Admin & Staff) -->
+<section id="guideSection" class="space-y-8 max-w-4xl mx-auto">
+  <div>
+    <h2 class="text-xl font-bold text-navy-900">คู่มือการใช้งานระบบ</h2>
+    <p class="text-sm text-slate-600 mt-1">คำอธิบายการใช้งานหน้า Management Mode สำหรับ Admin และ Staff</p>
+  </div>
+
+  <!-- Table of contents -->
+  <nav class="bg-white p-4 rounded-xl border border-slate-200 border-l-4 border-l-gold-500 shadow-sm">
+    <p class="text-xs font-bold text-navy-900 mb-2">สารบัญ</p>
+    <ol class="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm text-navy-700 list-decimal list-inside">
+      <li><a href="#guide-roles" class="hover:underline">สิทธิ์ ADMIN กับ STAFF</a></li>
+      <li><a href="#guide-login" class="hover:underline">เข้าสู่ระบบ</a></li>
+      <li><a href="#guide-dashboard" class="hover:underline">ภาพรวม (Dashboard)</a></li>
+      <li><a href="#guide-activities" class="hover:underline">จัดการกิจกรรม</a></li>
+      <li><a href="#guide-participants" class="hover:underline">นำเข้ารายชื่อ</a></li>
+      <li><a href="#guide-certificates" class="hover:underline">รายการเกียรติบัตร</a></li>
+      <li><a href="#guide-settings" class="hover:underline">ตั้งค่า &amp; Logs (ADMIN)</a></li>
+      <li><a href="#guide-tips" class="hover:underline">เคล็ดลับและข้อควรระวัง</a></li>
+    </ol>
+  </nav>
+
+  <!-- 1. Roles -->
+  <div id="guide-roles" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
+    <h3 class="text-base font-bold text-navy-900">1. สิทธิ์การใช้งาน: ADMIN กับ STAFF ต่างกันอย่างไร</h3>
+    <div class="overflow-x-auto">
+      <table class="min-w-full text-sm divide-y divide-slate-200">
+        <thead class="bg-slate-50 text-slate-700">
+          <tr>
+            <th class="px-3 py-2 text-left">เมนู / ฟังก์ชัน</th>
+            <th class="px-3 py-2 text-center">ADMIN</th>
+            <th class="px-3 py-2 text-center">STAFF</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-200">
+          <tr><td class="px-3 py-2">ภาพรวม (Dashboard)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">จัดการกิจกรรม (สร้าง/แก้ไข)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">ลบกิจกรรม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+          <tr><td class="px-3 py-2">นำเข้ารายชื่อ / แก้ไขผู้เข้าร่วม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">ออกเลข / แก้ไข / revoke / reissue เกียรติบัตร</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">ลบเกียรติบัตร (เฉพาะที่ยังไม่ออกเลข)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+          <tr><td class="px-3 py-2">ตั้งค่าระบบ (Settings)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕ (มองไม่เห็นเมนู)</td></tr>
+          <tr><td class="px-3 py-2">จัดการผู้ใช้งาน</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+          <tr><td class="px-3 py-2">Audit Logs / รายงานปัญหาจากสาธารณะ</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="text-xs text-slate-500">โดยสรุป: STAFF ทำงานประจำวันได้ครบ (สร้างกิจกรรม, นำเข้ารายชื่อ, ออกเลข, แก้ไข/ยกเลิกเกียรติบัตร) ส่วนงานที่กระทบความปลอดภัยของระบบหรือลบข้อมูลถาวรสงวนไว้ให้ ADMIN เท่านั้น</p>
+  </div>
+
+  <!-- 2. Login -->
+  <div id="guide-login" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-2">
+    <h3 class="text-base font-bold text-navy-900">2. เข้าสู่ระบบ</h3>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
+      <li>เปิดหน้าเว็บ CertiFlow แล้วกดปุ่ม <strong>"Management Mode"</strong> มุมขวาบน</li>
+      <li>กรอก userId และรหัสผ่านที่ได้รับจาก ADMIN</li>
+      <li>หากพิมพ์รหัสผ่านผิดเกิน 5 ครั้งติดต่อกัน ระบบจะล็อกชั่วคราว 15 นาที</li>
+      <li>เมื่อ login สำเร็จ ระบบจะจำสถานะไว้ในเบราว์เซอร์ — ปิดแท็บแล้วเปิดใหม่ยังคง login อยู่ จนกว่าจะกด "ออกจากระบบ" หรือ session หมดอายุ (6 ชั่วโมง)</li>
+    </ol>
+  </div>
+
+  <!-- 3. Dashboard -->
+  <div id="guide-dashboard" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-2">
+    <h3 class="text-base font-bold text-navy-900">3. ภาพรวม (Dashboard)</h3>
+    <ul class="list-disc list-inside text-sm text-slate-700 space-y-1.5">
+      <li><strong>กิจกรรมทั้งหมด / ผู้เข้าร่วมทั้งหมด</strong> — จำนวนสะสมทุกกิจกรรม</li>
+      <li><strong>ออกเกียรติบัตรแล้ว</strong> — จำนวนใบที่มีเลขที่แล้ว (สถานะ ISSUED)</li>
+      <li><strong>รอดำเนินการ</strong> — ใบที่ยังไม่ได้ออกเลข (DRAFT/PENDING)</li>
+      <li><strong>ถูกยกเลิก (Revoked)</strong> — ใบที่ถูกยกเลิกแล้ว</li>
+      <li>ตารางด้านล่างสรุปยอดแยกตามแต่ละกิจกรรม พร้อมสถานะกิจกรรม</li>
+    </ul>
+  </div>
+
+  <!-- 4. Activities -->
+  <div id="guide-activities" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+    <h3 class="text-base font-bold text-navy-900">4. จัดการกิจกรรม (Activities)</h3>
+
+    <div>
+      <p class="text-sm font-semibold text-slate-800 mb-1">สร้างกิจกรรมใหม่</p>
+      <p class="text-sm text-slate-700">กดปุ่ม "+ สร้างกิจกรรมใหม่" แล้วกรอกชื่อกิจกรรม ผู้จัด หน่วยงานที่ออก วันที่ (เลือกจากปฏิทิน) และตั้งค่ารูปแบบเลขที่เกียรติบัตร เช่น <span class="font-mono text-gold-700">เลขที่ สพม.พลอต ๐๐๐๑/๒๕๖๙</span></p>
+    </div>
+
+    <div class="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+      สำคัญ: ระบบออกเลขไม่ซ้ำกันเสมอ ห้ามลดค่า "เลขเริ่มต้น" ให้ต่ำกว่าที่เคยใช้ไปแล้ว (ระบบจะไม่อนุญาตให้บันทึก) และถ้าออกเลขจนถึง "เลขสิ้นสุด" แล้ว ต้องแก้ไขกิจกรรมเพื่อขยายเลขสิ้นสุดก่อนออกเพิ่ม
+    </div>
+
+    <div>
+      <p class="text-sm font-semibold text-slate-800 mb-1">เตรียม Google Slides Template</p>
+      <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
+        <li>สร้างไฟล์ Google Slides ที่มีสไลด์หลักเพียง 1 หน้า</li>
+        <li>ใส่ข้อความ <span class="font-mono bg-slate-100 px-1 rounded">{{name}}</span> ตรงตำแหน่งชื่อผู้รับ และ <span class="font-mono bg-slate-100 px-1 rounded">{{certNo}}</span> ตรงตำแหน่งเลขที่เกียรติบัตร (อย่างละ 1 ตำแหน่งเท่านั้น)</li>
+        <li>คัดลอก Template ID จาก URL ของไฟล์ (ระหว่าง <span class="font-mono">/d/</span> กับ <span class="font-mono">/edit</span>) มาใส่ในฟอร์ม</li>
+        <li>กด "ตรวจ Template" เพื่อเช็คว่าพบ placeholder ครบถูกต้อง</li>
+        <li>กด "Preview" เพื่อดูตัวอย่างหน้าตาจริง (อาจใช้เวลา 3-8 วินาที)</li>
+      </ol>
+    </div>
+
+    <div>
+      <p class="text-sm font-semibold text-slate-800 mb-1">แก้ไข / ลบกิจกรรม</p>
+      <p class="text-sm text-slate-700">แก้ไขได้แม้มีเกียรติบัตรออกไปแล้ว (ยกเว้นลดเลขเริ่มต้น) ส่วนการลบทำได้เฉพาะ ADMIN และเฉพาะกิจกรรมที่ยังไม่มีข้อมูลอ้างอิง</p>
+    </div>
+  </div>
+
+  <!-- 5. Participants -->
+  <div id="guide-participants" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+    <h3 class="text-base font-bold text-navy-900">5. นำเข้ารายชื่อ (Participants)</h3>
+    <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
+      <li>กดปุ่ม "+ นำเข้ารายชื่อ (CSV/Text)" แล้วเลือกกิจกรรม</li>
+      <li>อัปโหลดไฟล์ CSV/XLSX (กด "ดาวน์โหลด Template Excel" ก่อนเพื่อได้หัวคอลัมน์ที่ถูกต้อง) หรือวางข้อความคั่นด้วยจุลภาค/Tab</li>
+      <li>กด "ตรวจสอบข้อมูลก่อนนำเข้า (Validate)" — ระบบแยกแถวเป็น <strong>ถูกต้อง / อาจซ้ำ / ผิดพลาด</strong></li>
+      <li>หากมีรายการ "อาจซ้ำ" และต้องการนำเข้าจริง ให้ติ๊ก "ยืนยันนำเข้ารายชื่อที่อาจซ้ำซ้อนด้วย"</li>
+      <li>กด "ยืนยันการบันทึกนำเข้า" (นำเข้าได้สูงสุด 5,000 แถวต่อครั้ง)</li>
+    </ol>
+    <p class="text-sm text-slate-700">แต่ละแถวที่นำเข้าสำเร็จจะถูกสร้างเป็นผู้เข้าร่วม + เกียรติบัตร (สถานะ DRAFT รอออกเลข) โดยอัตโนมัติ แก้ไขข้อมูลรายคนได้จากปุ่ม "แก้ไข" ที่แถวนั้นในตาราง</p>
+  </div>
+
+  <!-- 6. Certificates -->
+  <div id="guide-certificates" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
+    <h3 class="text-base font-bold text-navy-900">6. รายการเกียรติบัตร (Certificates Registry)</h3>
+    <p class="text-sm text-slate-700">ทะเบียนกลางของเกียรติบัตรทุกใบ กรองได้ตามกิจกรรม/สถานะ และค้นหาในตารางได้</p>
+
+    <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-700 overflow-x-auto whitespace-pre">
+DRAFT/PENDING --ออกเลข--> ISSUED --ยกเลิก (ระบุเหตุผล)--> REVOKED --ออกใหม่--> DRAFT (รอออกเลขใหม่)
+     |
+     +--ลบ (เฉพาะ ADMIN, เฉพาะใบที่ยังไม่ออกเลข)--> DELETED</div>
+
+    <ul class="list-disc list-inside text-sm text-slate-700 space-y-1.5">
+      <li><strong>ออกเลข</strong>: ทีละใบ หรือ "ออกเลขแบบชุด" เพื่อออกเลขทุกใบที่ยังไม่ออกพร้อมกัน — มีแถบความคืบหน้าและปุ่ม "ยกเลิกคิว"</li>
+      <li><strong>ยกเลิก (Revoke)</strong>: ทำได้เฉพาะใบสถานะ ISSUED ต้องระบุเหตุผลเสมอ ใบที่ถูกยกเลิกจะหายจากผลค้นหาสาธารณะทันที แต่ยังตรวจสอบผ่านหน้า Verify ได้</li>
+      <li><strong>ออกใหม่ (Reissue)</strong>: ทำได้เฉพาะใบสถานะ REVOKED กลับไปเป็น DRAFT ต้องกด "ออกเลข" อีกครั้งเพื่อรับเลขที่ใหม่ (เลขเดิมจะไม่ถูกนำกลับมาใช้ซ้ำ)</li>
+      <li><strong>ลบ</strong>: ลบถาวรได้เฉพาะใบที่ยังไม่เคยออกเลขและเฉพาะ ADMIN ใบที่เคยออกเลขแล้วต้องใช้ "ยกเลิก" แทน</li>
+      <li><strong>ตัวอย่าง / ดาวน์โหลด PDF / JPEG / QR</strong>: ใช้ได้เฉพาะใบสถานะ ISSUED เท่านั้น</li>
+      <li><strong>ดาวน์โหลด Excel</strong>: ส่งออกทะเบียนตามกิจกรรม/สถานะที่กรองอยู่ในขณะนั้นเป็นไฟล์ .xlsx</li>
+    </ul>
+  </div>
+
+  <!-- 7. Settings -->
+  <div id="guide-settings" class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-3">
+    <h3 class="text-base font-bold text-navy-900">7. ตั้งค่า &amp; Logs <span class="text-xs font-normal text-gold-700 align-middle">(ADMIN เท่านั้น)</span></h3>
+    <ul class="list-disc list-inside text-sm text-slate-700 space-y-1.5">
+      <li><strong>ตั้งค่าระบบ</strong>: ชื่อระบบ หน่วยงาน, URL เว็บแอป, Drive Folder ID, timezone — ค่าที่อ่อนไหวจะไม่แสดงในหน้านี้เพื่อความปลอดภัย</li>
+      <li><strong>จัดการผู้ใช้งาน</strong>: สร้างบัญชี Admin/Staff กำหนดสิทธิ์และสถานะ — ระบบบังคับให้มี ADMIN ที่ Active อย่างน้อย 1 บัญชีเสมอ</li>
+      <li><strong>รายงานปัญหาจากสาธารณะ</strong>: รายการที่ผู้ใช้ทั่วไปแจ้ง "ข้อมูลไม่ถูกต้อง" จะมาปรากฏที่นี่ กด "ปิดเรื่อง" เมื่อจัดการเสร็จ</li>
+      <li><strong>Audit Logs</strong>: บันทึกทุกการกระทำสำคัญพร้อมผู้กระทำและเวลา กรองได้ และดูรายละเอียด "ก่อน-หลัง" ของแต่ละรายการได้</li>
+    </ul>
+  </div>
+
+  <!-- 8. Tips -->
+  <div id="guide-tips" class="bg-navy-50 border border-navy-200 border-l-4 border-l-gold-500 p-6 rounded-xl space-y-2">
+    <h3 class="text-base font-bold text-navy-900">8. เคล็ดลับและข้อควรระวัง</h3>
+    <ul class="list-disc list-inside text-sm text-navy-800 space-y-1.5">
+      <li>ใบที่เคยออกเลขไปแล้วจะลบถาวรไม่ได้เด็ดขาด (ต้องยกเลิกแทน) เพื่อป้องกันข้อมูลเกียรติบัตรจริงหายไปโดยไม่มีหลักฐาน</li>
+      <li>การนำเข้าซ้ำตรวจจากชื่อ+นามสกุล+โรงเรียนภายในกิจกรรมเดียวกัน หากมีคนชื่อซ้ำกันจริงแต่เป็นคนละคน ให้ระบุโรงเรียน/หน่วยงานให้ต่างกัน หรือยืนยันนำเข้าซ้ำได้หากมั่นใจ</li>
+      <li>การสร้างไฟล์ตัวอย่าง/ดาวน์โหลดมีการจำกัดความถี่ (rate limit) หากกดถี่เกินไประบบจะแจ้งให้รอสักครู่</li>
+    </ul>
+  </div>
+</section>
