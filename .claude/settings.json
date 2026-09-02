@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit -m ' *)",
+      "Bash(clasp deployments *)",
+      "Bash(clasp versions *)",
+      "Bash(clasp deploy *)",
+      "Bash(git push *)"
+    ]
+  }
+}
