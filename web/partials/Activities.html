@@ -1,8 +1,8 @@
 <!-- Activities Management Partial -->
 <section id="activitiesSection" class="space-y-6">
   <div class="flex justify-between items-center">
-    <h2 class="text-xl font-bold text-slate-900">จัดการกิจกรรม (Activities)</h2>
-    <button id="btnNewActivity" data-admin-only onclick="openActivityModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md shadow-sm transition">
+    <h2 class="text-xl font-bold text-navy-900">จัดการกิจกรรม (Activities)</h2>
+    <button id="btnNewActivity" data-admin-only onclick="openActivityModal()" class="px-4 py-2 bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium rounded-md shadow-sm transition">
       + สร้างกิจกรรมใหม่
     </button>
   </div>
@@ -58,15 +58,15 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="block font-medium text-slate-700 mb-1">วันที่เริ่ม</label>
-          <input type="text" id="actStartDate" placeholder="เช่น 1 สิงหาคม 2569" class="w-full rounded-md border p-2 border-slate-300">
+          <input type="date" id="actStartDate" class="w-full rounded-md border p-2 border-slate-300 focus:border-navy-500 focus:ring-1 focus:ring-navy-500 outline-none">
         </div>
         <div>
           <label class="block font-medium text-slate-700 mb-1">วันที่สิ้นสุด</label>
-          <input type="text" id="actEndDate" placeholder="เช่น 2 สิงหาคม 2569" class="w-full rounded-md border p-2 border-slate-300">
+          <input type="date" id="actEndDate" class="w-full rounded-md border p-2 border-slate-300 focus:border-navy-500 focus:ring-1 focus:ring-navy-500 outline-none">
         </div>
         <div>
           <label class="block font-medium text-slate-700 mb-1">วันที่ออกใบเกียรติบัตร</label>
-          <input type="text" id="actIssueDate" placeholder="เช่น 31 สิงหาคม 2569" class="w-full rounded-md border p-2 border-slate-300">
+          <input type="date" id="actIssueDate" class="w-full rounded-md border p-2 border-slate-300 focus:border-navy-500 focus:ring-1 focus:ring-navy-500 outline-none">
         </div>
       </div>
 
@@ -116,10 +116,10 @@
         <div class="flex space-x-2">
           <input type="text" id="actTemplateId" required placeholder="เช่น 1A2B3C4D5E..." class="flex-1 rounded-md border p-2 border-slate-300 font-mono text-xs">
           <button type="button" onclick="handleValidateTemplateBtn()" class="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-medium rounded-md text-xs">
-            🔍 ตรวจ Template
+            ตรวจ Template
           </button>
-          <button type="button" id="btnPreviewTemplate" onclick="handlePreviewTemplateBtn()" class="px-3 py-2 bg-sky-100 hover:bg-sky-200 text-sky-700 font-medium rounded-md text-xs">
-            👁 Preview
+          <button type="button" id="btnPreviewTemplate" onclick="handlePreviewTemplateBtn()" class="px-3 py-2 bg-navy-50 hover:bg-navy-100 text-navy-700 border border-navy-200 font-medium rounded-md text-xs">
+            Preview
           </button>
         </div>
         <div id="templateCheckResult" class="mt-2 text-xs"></div>
@@ -136,7 +136,7 @@
 
       <div class="flex justify-end space-x-3 pt-4 border-t">
         <button type="button" onclick="closeActivityModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
-        <button type="submit" id="btnSaveAct" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium">บันทึกกิจกรรม</button>
+        <button type="submit" id="btnSaveAct" class="px-5 py-2 bg-navy-800 hover:bg-navy-900 text-white rounded-md font-medium">บันทึกกิจกรรม</button>
       </div>
     </form>
   </div>

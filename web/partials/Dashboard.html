@@ -1,30 +1,30 @@
 <!-- Management Dashboard Partial -->
 <section id="dashboardSection" class="space-y-6">
   <div class="flex justify-between items-center">
-    <h2 class="text-xl font-bold text-slate-900">ภาพรวมระบบ (Dashboard)</h2>
+    <h2 class="text-xl font-bold text-navy-900">ภาพรวมระบบ (Dashboard)</h2>
     <button id="btnRefreshDashboard" onclick="loadDashboardData()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-md transition">
-      🔄 รีเฟรชข้อมูล
+      รีเฟรชข้อมูล
     </button>
   </div>
-  
+
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 border-t-4 border-t-navy-800 shadow-sm">
       <p class="text-xs font-medium text-slate-500">กิจกรรมทั้งหมด</p>
-      <p id="statActivities" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+      <p id="statActivities" class="text-2xl font-bold text-navy-900 mt-1">0</p>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 border-t-4 border-t-navy-800 shadow-sm">
       <p class="text-xs font-medium text-slate-500">ผู้เข้าร่วมทั้งหมด</p>
-      <p id="statParticipants" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+      <p id="statParticipants" class="text-2xl font-bold text-navy-900 mt-1">0</p>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 border-t-4 border-t-gold-500 shadow-sm">
       <p class="text-xs font-medium text-slate-500">ออกเกียรติบัตรแล้ว</p>
-      <p id="statIssued" class="text-2xl font-bold text-indigo-600 mt-1">0</p>
+      <p id="statIssued" class="text-2xl font-bold text-gold-700 mt-1">0</p>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 border-t-4 border-t-amber-400 shadow-sm">
       <p class="text-xs font-medium text-slate-500">รอดำเนินการ</p>
       <p id="statPending" class="text-2xl font-bold text-amber-600 mt-1">0</p>
     </div>
-    <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+    <div class="bg-white p-5 rounded-xl border border-slate-200 border-t-4 border-t-rose-400 shadow-sm">
       <p class="text-xs font-medium text-slate-500">ถูกยกเลิก (Revoked)</p>
       <p id="statRevoked" class="text-2xl font-bold text-rose-600 mt-1">0</p>
     </div>

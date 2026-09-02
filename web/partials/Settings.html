@@ -1,6 +1,6 @@
 <!-- Settings & Audit Logs Partial -->
 <section id="settingsSection" class="space-y-6">
-  <h2 class="text-xl font-bold text-slate-900">ตั้งค่าระบบ & Audit Logs</h2>
+  <h2 class="text-xl font-bold text-navy-900">ตั้งค่าระบบ & Audit Logs</h2>
   
   <!-- System Settings Info -->
   <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
@@ -14,7 +14,7 @@
       <label>TEMP_FOLDER_ID<input id="cfgTempFolder" class="mt-1 w-full rounded border p-2 font-mono"></label>
       <label>Timezone<input id="cfgTimezone" placeholder="Asia/Bangkok" class="mt-1 w-full rounded border p-2 font-mono"></label>
       <div class="p-2 bg-slate-50 rounded border">Database: <span id="cfgDbId" class="font-mono">—</span></div>
-      <div class="md:col-span-2"><button class="px-4 py-2 bg-indigo-600 text-white rounded">บันทึกการตั้งค่า</button></div>
+      <div class="md:col-span-2"><button class="px-4 py-2 bg-navy-800 text-white rounded">บันทึกการตั้งค่า</button></div>
     </form>
   </div>
 
@@ -30,7 +30,7 @@
         <h3 class="text-base font-bold text-slate-900">จัดการผู้ใช้งานระบบ (Users)</h3>
         <p class="text-xs text-slate-500">กำหนดสิทธิ์ ADMIN (สิทธิ์เต็ม) และ STAFF (จัดการผู้เข้าร่วม/ออกเลข)</p>
       </div>
-      <button onclick="openUserModal()" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-md shadow-sm transition">
+      <button onclick="openUserModal()" class="px-3 py-1.5 bg-navy-800 hover:bg-navy-900 text-white text-xs font-medium rounded-md shadow-sm transition">
         + เพิ่มผู้ใช้ใหม่
       </button>
     </div>
@@ -60,7 +60,7 @@
     <div class="flex justify-between items-center">
       <h3 class="text-base font-bold text-slate-900">ประวัติการบันทึกการกระทำ (Audit Logs)</h3>
       <button onclick="loadAuditLogsList()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-md transition">
-        🔄 รีเฟรช Logs
+        รีเฟรช Logs
       </button>
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
@@ -139,7 +139,7 @@
 
       <div class="flex justify-end space-x-3 pt-3 border-t">
         <button type="button" onclick="closeUserModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
-        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium">บันทึกผู้ใช้</button>
+        <button type="submit" class="px-5 py-2 bg-navy-800 hover:bg-navy-900 text-white rounded-md font-medium">บันทึกผู้ใช้</button>
       </div>
     </form>
   </div>

@@ -1,18 +1,24 @@
 <!-- Certificates Registry & Actions Partial -->
 <section id="certificatesSection" class="space-y-6">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <h2 class="text-xl font-bold text-slate-900">ทะเบียนเกียรติบัตร (Certificates Registry)</h2>
+    <h2 class="text-xl font-bold text-navy-900">ทะเบียนเกียรติบัตร (Certificates Registry)</h2>
     <div class="flex space-x-2">
-      <button onclick="startAssignNumberQueue()" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium rounded-md transition">
-        ⚡ ออกเลขแบบชุด
+      <button onclick="startAssignNumberQueue()" class="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium rounded-md transition">
+        ออกเลขแบบชุด
+      </button>
+      <button onclick="exportCertificatesToExcel()" class="px-3 py-1.5 bg-gold-50 hover:bg-gold-100 text-gold-800 border border-gold-300 text-xs font-medium rounded-md transition">
+        ดาวน์โหลด Excel
       </button>
       <button onclick="loadCertificatesList()" class="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-medium rounded-md transition">
-        🔄 รีเฟรชตาราง
+        รีเฟรชตาราง
       </button>
     </div>
   </div>
 
-  <div id="generationQueueStatus" class="hidden bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"></div>
+  <div id="generationQueueStatus" class="hidden bg-navy-50 border border-navy-200 rounded-lg p-3 text-xs text-navy-800 flex items-center justify-between gap-3">
+    <span id="generationQueueStatusText" class="flex-1"></span>
+    <button id="btnCancelAssignQueue" type="button" onclick="cancelAssignNumberQueue()" class="hidden px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-medium whitespace-nowrap">ยกเลิกคิว</button>
+  </div>
 
   <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-3 gap-4">
     <div>
@@ -96,12 +102,12 @@
       </div>
 
       <div class="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-        ⚠️ การแก้ไขชื่อครั้งแรก ระบบจะบันทึก **ชื่อดั้งเดิม** ไว้ใน Audit Log โดยอัตโนมัติ
+        หมายเหตุ: การแก้ไขชื่อครั้งแรก ระบบจะบันทึกชื่อดั้งเดิมไว้ใน Audit Log โดยอัตโนมัติ
       </div>
 
       <div class="flex justify-end space-x-3 pt-3 border-t">
         <button type="button" onclick="closeEditCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
-        <button type="submit" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md font-medium">บันทึกการแก้ไข</button>
+        <button type="submit" class="px-5 py-2 bg-navy-800 hover:bg-navy-900 text-white rounded-md font-medium">บันทึกการแก้ไข</button>
       </div>
     </form>
   </div>
