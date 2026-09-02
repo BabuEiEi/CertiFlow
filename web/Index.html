@@ -47,19 +47,19 @@
     <? if (page !== 'search' && page !== 'verify') { ?>
       <div class="bg-slate-100 border-t border-slate-200">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-wrap gap-x-6 text-sm font-medium">
-          <a href="?page=dashboard" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
+          <a href="<?= webAppUrl ?>?page=dashboard" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
             📊 ภาพรวม (Dashboard)
           </a>
-          <a href="?page=activities" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
+          <a href="<?= webAppUrl ?>?page=activities" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
             🎯 จัดการกิจกรรม
           </a>
-          <a href="?page=participants" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
+          <a href="<?= webAppUrl ?>?page=participants" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
             👥 นำเข้ารายชื่อ
           </a>
-          <a href="?page=certificates" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
+          <a href="<?= webAppUrl ?>?page=certificates" class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
             📜 รายการเกียรติบัตร
           </a>
-          <a href="?page=settings" data-admin-only class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
+          <a href="<?= webAppUrl ?>?page=settings" data-admin-only class="py-2.5 border-b-2 border-transparent text-slate-600 hover:text-slate-900">
             ⚙️ ตั้งค่า & Logs
           </a>
         </div>
