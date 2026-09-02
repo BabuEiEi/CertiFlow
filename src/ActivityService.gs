@@ -170,7 +170,7 @@ const ActivityService = {
     const hasParticipants = typeof ParticipantService !== 'undefined' && ParticipantService.getParticipants(activityId).length > 0;
     const hasCertificates = typeof CertificateService !== 'undefined' && CertificateService.getAllCertificates().some(cert => String(cert.activityId).trim() === String(activityId).trim());
     if (hasParticipants || hasCertificates) {
-      throw new Error('กิจกรรมมีข้อมูลอ้างอิงแล้ว ห้ามลบ กรุณาเปลี่ยนสถานะเป็น CLOSED');
+      throw new Error('กิจกรรมนี้มีข้อมูลผู้เข้าร่วมหรือเกียรติบัตรอ้างอิงอยู่แล้ว ไม่สามารถลบถาวรได้ กรุณาปิด (CLOSED) แทน');
     }
     SheetService.deleteRows(Config.SHEETS.ACTIVITIES, activity._rowIndex, 1);
     if (typeof AuditService !== 'undefined') {
