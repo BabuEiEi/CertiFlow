@@ -246,6 +246,20 @@
       .then((result) => {
         setAuthToken(result.authToken);
         document.getElementById('loginPassword').value = '';
+
+        // A fresh login always lands on the Dashboard, regardless of which management
+        // page the login gate happened to appear on (e.g. a bookmarked/shared link).
+        // Apps Script's HtmlService sandbox iframe never reflects the real page URL in
+        // this frame's own window.location, so navigating must target the top-level
+        // browsing context, not this frame — same as handleLogout().
+        const currentPage = (window.CERTIFLOW_PARAMS && window.CERTIFLOW_PARAMS.page) || '';
+        if (currentPage && currentPage !== 'dashboard' && window.CERTIFLOW_WEB_APP_URL) {
+          const target = `${window.CERTIFLOW_WEB_APP_URL}?page=dashboard`;
+          try { window.top.location.href = target; }
+          catch (e) { window.location.href = target; }
+          return;
+        }
+
         activateManagementSession(result.user);
       })
       .catch((error) => showLoginModal(error.message))
