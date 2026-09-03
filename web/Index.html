@@ -94,8 +94,8 @@
       ?>
       <div id="navOverlay" onclick="toggleSideNav(false)" class="hidden fixed inset-x-0 top-16 bottom-0 bg-slate-900/50 z-30 lg:hidden"></div>
 
-      <aside id="sideNav" class="fixed top-16 bottom-0 left-0 z-40 w-64 bg-navy-800 border-r border-navy-700 overflow-y-auto -translate-x-full transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-16 lg:bottom-auto lg:h-[calc(100vh-4rem)] lg:z-auto lg:w-60 lg:flex-shrink-0">
-        <nav class="py-4 flex flex-col text-sm font-medium">
+      <aside id="sideNav" class="fixed top-16 bottom-0 left-0 z-40 w-64 bg-navy-800 border-r border-navy-700 flex flex-col -translate-x-full transition-transform duration-200 lg:translate-x-0 lg:sticky lg:top-16 lg:bottom-auto lg:h-[calc(100vh-4rem)] lg:z-auto lg:w-60 lg:flex-shrink-0">
+        <nav class="py-4 flex-1 overflow-y-auto flex flex-col text-sm font-medium">
           <? navItems.forEach(function(item) { ?>
             <?
               var isActive = (page === item.key);
@@ -118,6 +118,15 @@
             </a>
           <? }); ?>
         </nav>
+
+        <!-- Credit line, pinned to the bottom of the sidebar. Only on lg+, where the sidebar
+             is permanently visible; smaller screens keep the page-level footer bar instead,
+             since the sidebar there is a drawer that stays closed. -->
+        <div class="hidden lg:block flex-shrink-0 px-4 py-3 border-t border-navy-700 text-[11px] leading-snug text-navy-400">
+          <p>พัฒนาโดย © 2026</p>
+          <p class="text-navy-300">นายภัทรพล แก้วเสนา</p>
+          <p>ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์</p>
+        </div>
       </aside>
     <? } ?>
 
@@ -181,8 +190,9 @@
     </div>
   </div>
 
-  <!-- Footer -->
-  <footer class="bg-navy-900 border-t-2 border-gold-500 py-4 text-center text-xs text-navy-300">
+  <!-- Footer. On management pages this is the small-screen fallback for the sidebar's own
+       credit line; public pages have no sidebar, so there it stays visible at every width. -->
+  <footer class="bg-navy-900 border-t-2 border-gold-500 py-4 text-center text-xs text-navy-300 <?= (page !== 'search' && page !== 'verify') ? 'lg:hidden' : '' ?>">
     <p>พัฒนาโดย © 2026 | นายภัทรพล แก้วเสนา ศึกษานิเทศก์ สพม.พิษณุโลก อุตรดิตถ์</p>
   </footer>
 
