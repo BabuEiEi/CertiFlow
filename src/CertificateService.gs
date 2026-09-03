@@ -398,7 +398,18 @@ const CertificateService = {
     if (typeof AuthService !== 'undefined') {
       AuthService.requireRole([Config.ROLES.ADMIN]);
     }
+    return this.deleteCertificateRecord_(certificateId, cache);
+  },
 
+  /**
+   * Certificate-registry-row removal, without the ADMIN-only gate. Shared by the public
+   * deleteCertificate (ADMIN only) and ParticipantService's participant-delete cascade
+   * (ADMIN or STAFF), whose own role check already authorized the caller.
+   * @param {string} certificateId
+   * @param {Array<Object>} [cache] Pre-read registry rows for bulk callers
+   * @return {Object}
+   */
+  deleteCertificateRecord_(certificateId, cache) {
     const cert = this.getById(certificateId, cache);
     if (!cert) {
       throw new Error(`Certificate '${certificateId}' not found.`);
@@ -428,7 +439,7 @@ const CertificateService = {
         certificateId,
         beforeObj,
         deletedCert,
-        `Marked certificate ${certificateId} as DELETED by ADMIN`
+        `Marked certificate ${certificateId} as DELETED`
       );
     }
 

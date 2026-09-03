@@ -289,7 +289,7 @@ const ParticipantService = {
    * @return {Object}
    */
   deleteParticipant(participantId, reason) {
-    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN]);
+    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
     const cleanId = String(participantId || '').trim();
     const cleanReason = String(reason || '').trim();
     if (!cleanReason) throw new Error('กรุณาระบุเหตุผลในการลบ');
@@ -306,7 +306,9 @@ const ParticipantService = {
     }
 
     if (certificate) {
-      CertificateService.deleteCertificate(certificate.certificateId);
+      // Uses the internal (auth-agnostic) helper — this method's own role check above
+      // already authorizes the caller, and the public deleteCertificate is ADMIN-only.
+      CertificateService.deleteCertificateRecord_(certificate.certificateId);
     }
 
     SheetService.deleteRows(Config.SHEETS.PARTICIPANTS, participant._rowIndex, 1);
@@ -333,7 +335,7 @@ const ParticipantService = {
    * @return {Object} { deleted: Array<string>, skipped: Array<{participantId, message}> }
    */
   deleteParticipants(participantIds, reason) {
-    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN]);
+    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
     const ids = Array.isArray(participantIds) ? participantIds : [];
     const deleted = [];
     const skipped = [];

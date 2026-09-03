@@ -25,7 +25,7 @@
       <button type="button" onclick="clearParticipantSelection()" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-medium rounded-md transition">
         ล้างการเลือก
       </button>
-      <button type="button" data-admin-only onclick="openDeleteParticipantModal()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-medium rounded-md transition">
+      <button type="button" onclick="openDeleteParticipantModal()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-medium rounded-md transition">
         ลบที่เลือก
       </button>
     </div>
@@ -137,7 +137,7 @@
     <input id="editParticipantTrainingType" placeholder="ด้านการอบรม (เช่น ด้านการอ่าน)" class="border rounded p-2 w-full">
     <select id="editParticipantStatus" class="border rounded p-2 w-full"><option>เข้าร่วม</option><option>ผ่านการอบรม</option></select>
     <div class="flex justify-between items-center">
-      <button type="button" data-admin-only onclick="openDeleteParticipantModal(document.getElementById('editParticipantId').value)" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ลบผู้เข้าร่วมนี้</button>
+      <button type="button" onclick="openDeleteParticipantModal(document.getElementById('editParticipantId').value)" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ลบผู้เข้าร่วมนี้</button>
       <div class="text-right"><button type="button" onclick="closeParticipantModal()" class="px-3 py-2">ยกเลิก</button><button class="px-4 py-2 bg-navy-800 text-white rounded">บันทึก</button></div>
     </div>
   </form>

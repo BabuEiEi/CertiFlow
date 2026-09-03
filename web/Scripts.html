@@ -883,8 +883,6 @@
           return;
         }
 
-        const isAdmin = !!(CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN');
-
         tbody.innerHTML = participants.map(p => `
           <tr>
             <td class="px-4 py-3 text-center">
@@ -901,7 +899,7 @@
             </td>
             <td class="px-4 py-3 text-right space-x-1.5">
               <button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium">แก้ไข</button>
-              ${isAdmin ? `<button onclick="openDeleteParticipantModal('${p.participantId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>` : ''}
+              <button onclick="openDeleteParticipantModal('${p.participantId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>
             </td>
           </tr>
         `).join('');
