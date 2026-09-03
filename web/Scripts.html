@@ -733,7 +733,18 @@
     callApi('validateTemplate', { templateId: templateId })
       .then((res) => {
         if (res.valid) {
-          resultDiv.innerHTML = '<span class="text-emerald-600 font-bold">✓ Template ผ่านการตรวจสอบถูกต้อง! (พบ {{name}} และ {{certNo}})</span>';
+          const details = res.details || {};
+          const foundList = ['{{name}}', '{{certNo}}'];
+          const missingList = [];
+          [['office', '{{office}}'], ['type', '{{type}}'], ['qr', '{{qr}}']].forEach(([key, label]) => {
+            if (details[`found${key.charAt(0).toUpperCase()}${key.slice(1)}Count`] > 0) foundList.push(label);
+            else missingList.push(label);
+          });
+          const joinWithAnd = (items) => items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} และ ${items[items.length - 1]}`;
+          let message = `✓ Template ผ่านการตรวจสอบถูกต้อง! (พบ ${joinWithAnd(foundList)}`;
+          if (missingList.length) message += ` แต่ไม่ปรากฎ ${missingList.join(', ')}`;
+          message += ')';
+          resultDiv.innerHTML = `<span class="text-emerald-600 font-bold">${escapeHtml(message)}</span>`;
         } else {
           resultDiv.innerHTML = `<span class="text-rose-600 font-bold">✕ ไม่ผ่านการตรวจสอบ: ${escapeHtml(res.errors.join('; '))}</span>`;
         }
