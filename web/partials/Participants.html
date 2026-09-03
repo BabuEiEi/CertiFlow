@@ -19,10 +19,25 @@
     </div>
   </div>
 
+  <div id="participantBulkBar" class="hidden bg-navy-50 border border-navy-200 rounded-lg px-4 py-3 flex flex-wrap items-center gap-3">
+    <span id="participantBulkCount" class="text-xs font-semibold text-navy-900"></span>
+    <div class="flex flex-wrap gap-2 sm:ml-auto">
+      <button type="button" onclick="clearParticipantSelection()" class="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-medium rounded-md transition">
+        ล้างการเลือก
+      </button>
+      <button type="button" data-admin-only onclick="openDeleteParticipantModal()" class="px-3 py-1.5 bg-rose-700 hover:bg-rose-800 text-white text-xs font-medium rounded-md transition">
+        ลบที่เลือก
+      </button>
+    </div>
+  </div>
+
   <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
     <table class="min-w-full divide-y divide-slate-200 text-sm">
       <thead class="bg-slate-50 text-slate-700 font-medium">
         <tr>
+          <th class="px-4 py-3 text-center w-10">
+            <input type="checkbox" id="participantSelectAll" onchange="toggleSelectAllParticipants(this.checked)" title="เลือกทั้งหมดในตาราง" class="h-4 w-4 rounded border-slate-300 align-middle">
+          </th>
           <th class="px-4 py-3 text-left">ID ผู้เข้าร่วม</th>
           <th class="px-4 py-3 text-left">คำนำหน้า</th>
           <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
@@ -34,7 +49,7 @@
       </thead>
       <tbody id="participantTableBody" class="divide-y divide-slate-200">
         <tr>
-          <td colspan="7" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
+          <td colspan="8" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
         </tr>
       </tbody>
     </table>
@@ -121,6 +136,33 @@
     <input id="editParticipantSchool" placeholder="โรงเรียน/หน่วยงาน" class="border rounded p-2 w-full">
     <input id="editParticipantTrainingType" placeholder="ด้านการอบรม (เช่น ด้านการอ่าน)" class="border rounded p-2 w-full">
     <select id="editParticipantStatus" class="border rounded p-2 w-full"><option>เข้าร่วม</option><option>ผ่านการอบรม</option></select>
-    <div class="text-right"><button type="button" onclick="closeParticipantModal()" class="px-3 py-2">ยกเลิก</button><button class="px-4 py-2 bg-navy-800 text-white rounded">บันทึก</button></div>
+    <div class="flex justify-between items-center">
+      <button type="button" data-admin-only onclick="openDeleteParticipantModal(document.getElementById('editParticipantId').value)" class="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ลบผู้เข้าร่วมนี้</button>
+      <div class="text-right"><button type="button" onclick="closeParticipantModal()" class="px-3 py-2">ยกเลิก</button><button class="px-4 py-2 bg-navy-800 text-white rounded">บันทึก</button></div>
+    </div>
   </form>
+</div>
+
+<!-- Delete Participant Modal (single or bulk, reason required) -->
+<div id="deleteParticipantModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-rose-700">ลบผู้เข้าร่วม</h3>
+      <button onclick="closeDeleteParticipantModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="deleteParticipantForm" onsubmit="handleConfirmDeleteParticipant(event)" class="space-y-4 text-sm">
+      <p id="lblDeleteParticipantSummary" class="text-slate-600 text-xs"></p>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">ระบุเหตุผลในการลบ *</label>
+        <textarea id="deleteParticipantReasonText" required rows="3" placeholder="เช่น กรอกข้อมูลผิด, รายชื่อซ้ำซ้อน..." class="w-full rounded-md border p-2 border-slate-300 text-xs"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t">
+        <button type="button" onclick="closeDeleteParticipantModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-md font-medium">ยืนยันการลบ</button>
+      </div>
+    </form>
+  </div>
 </div>

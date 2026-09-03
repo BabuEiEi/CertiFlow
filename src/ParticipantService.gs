@@ -278,6 +278,74 @@ const ParticipantService = {
       school: updatedCertificate.school,
       participantStatus: updatedCertificate.participantStatus
     };
+  },
+
+  /**
+   * Permanently delete a participant row along with its linked certificate registry row
+   * (created together at import time, same suffix ID). Blocked while the linked certificate
+   * is still ISSUED, to avoid silently orphaning an active certificate — revoke it first.
+   * @param {string} participantId
+   * @param {string} reason Required justification, recorded in the audit log.
+   * @return {Object}
+   */
+  deleteParticipant(participantId, reason) {
+    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN]);
+    const cleanId = String(participantId || '').trim();
+    const cleanReason = String(reason || '').trim();
+    if (!cleanReason) throw new Error('กรุณาระบุเหตุผลในการลบ');
+
+    const participant = this.getParticipants('').find(item => String(item.participantId).trim() === cleanId);
+    if (!participant || !participant._rowIndex) throw new Error(`ไม่พบ Participant '${cleanId}'`);
+
+    const certificate = typeof CertificateService !== 'undefined'
+      ? CertificateService.getAllCertificates().find(item => String(item.participantId).trim() === cleanId && item.certificateStatus !== Config.CERT_STATUS.DELETED)
+      : null;
+
+    if (certificate && certificate.certificateStatus === Config.CERT_STATUS.ISSUED) {
+      throw new Error('ผู้เข้าร่วมนี้มีเกียรติบัตรที่ออกเลขแล้ว (ISSUED) ไม่สามารถลบได้ กรุณายกเลิก (REVOKED) เกียรติบัตรก่อน');
+    }
+
+    if (certificate) {
+      CertificateService.deleteCertificate(certificate.certificateId);
+    }
+
+    SheetService.deleteRows(Config.SHEETS.PARTICIPANTS, participant._rowIndex, 1);
+
+    if (typeof AuditService !== 'undefined') {
+      AuditService.log(
+        AuditService.ACTIONS.DELETE_PARTICIPANT,
+        'Participant',
+        cleanId,
+        participant,
+        null,
+        `Deleted participant ${cleanId}. Reason: ${cleanReason}`
+      );
+    }
+
+    return { participantId: cleanId, deleted: true, certificateId: certificate ? certificate.certificateId : null };
+  },
+
+  /**
+   * Bulk delete — same eligibility rule as deleteParticipant, applied row by row so one
+   * ineligible row (e.g. an ISSUED certificate) does not block the rest of the selection.
+   * @param {Array<string>} participantIds
+   * @param {string} reason
+   * @return {Object} { deleted: Array<string>, skipped: Array<{participantId, message}> }
+   */
+  deleteParticipants(participantIds, reason) {
+    if (typeof AuthService !== 'undefined') AuthService.requireRole([Config.ROLES.ADMIN]);
+    const ids = Array.isArray(participantIds) ? participantIds : [];
+    const deleted = [];
+    const skipped = [];
+    ids.forEach(id => {
+      try {
+        this.deleteParticipant(id, reason);
+        deleted.push(id);
+      } catch (e) {
+        skipped.push({ participantId: id, message: e.message || String(e) });
+      }
+    });
+    return { deleted, skipped };
   }
 };
 

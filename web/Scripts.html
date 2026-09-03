@@ -855,16 +855,28 @@
     callApi('getParticipants', { activityId })
       .then((participants) => {
         CertiFlowState.participants = participants || [];
+        // A reloaded list invalidates any previous tick marks (rows may be gone), so
+        // selection always starts clean after a refresh.
+        CertiFlowState.selectedParticipantIds = [];
         if (totalCount) totalCount.textContent = participants.length;
         if (!tbody) return;
 
+        CertiFlowState.renderedParticipantIds = (participants || []).map(p => p.participantId);
+
         if (!participants || participants.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
+          updateParticipantSelectionUi();
           return;
         }
 
+        const isAdmin = !!(CertiFlowState.currentUser && CertiFlowState.currentUser.role === 'ADMIN');
+
         tbody.innerHTML = participants.map(p => `
           <tr>
+            <td class="px-4 py-3 text-center">
+              <input type="checkbox" class="participant-row-check h-4 w-4 rounded border-slate-300 align-middle" data-participant-id="${escapeHtml(p.participantId)}"
+                onchange="toggleParticipantSelection('${p.participantId}', this.checked)" ${isParticipantSelected(p.participantId) ? 'checked' : ''}>
+            </td>
             <td class="px-4 py-3 font-mono text-xs">${escapeHtml(p.participantId)}</td>
             <td class="px-4 py-3 text-slate-600">${escapeHtml(p.prefixName || '-')}</td>
             <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</td>
@@ -873,11 +885,112 @@
             <td class="px-4 py-3 text-center">
               <span class="px-2 py-0.5 rounded text-xs font-semibold bg-navy-50 text-navy-700">${escapeHtml(p.participantStatus)}</span>
             </td>
-            <td class="px-4 py-3 text-right"><button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 rounded">แก้ไข</button></td>
+            <td class="px-4 py-3 text-right space-x-1.5">
+              <button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium">แก้ไข</button>
+              ${isAdmin ? `<button onclick="openDeleteParticipantModal('${p.participantId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>` : ''}
+            </td>
           </tr>
         `).join('');
+        updateParticipantSelectionUi();
       })
       .catch((err) => showAlert(`โหลดรายชื่อล้มเหลว: ${err.message}`, true));
+  }
+
+  /* --- Bulk selection & deletion for the participants list --- */
+
+  function isParticipantSelected(participantId) {
+    return (CertiFlowState.selectedParticipantIds || []).indexOf(participantId) !== -1;
+  }
+
+  function toggleParticipantSelection(participantId, checked) {
+    const selected = CertiFlowState.selectedParticipantIds || [];
+    const index = selected.indexOf(participantId);
+    if (checked && index === -1) selected.push(participantId);
+    if (!checked && index !== -1) selected.splice(index, 1);
+    CertiFlowState.selectedParticipantIds = selected;
+    updateParticipantSelectionUi();
+  }
+
+  function toggleSelectAllParticipants(checked) {
+    (CertiFlowState.renderedParticipantIds || []).forEach(id => {
+      const index = CertiFlowState.selectedParticipantIds.indexOf(id);
+      if (checked && index === -1) CertiFlowState.selectedParticipantIds.push(id);
+      if (!checked && index !== -1) CertiFlowState.selectedParticipantIds.splice(index, 1);
+    });
+    document.querySelectorAll('.participant-row-check').forEach(box => { box.checked = checked; });
+    updateParticipantSelectionUi();
+  }
+
+  function clearParticipantSelection() {
+    CertiFlowState.selectedParticipantIds = [];
+    document.querySelectorAll('.participant-row-check').forEach(box => { box.checked = false; });
+    updateParticipantSelectionUi();
+  }
+
+  function updateParticipantSelectionUi() {
+    const selected = CertiFlowState.selectedParticipantIds || [];
+    const rendered = CertiFlowState.renderedParticipantIds || [];
+    const bar = document.getElementById('participantBulkBar');
+    const label = document.getElementById('participantBulkCount');
+    const selectAll = document.getElementById('participantSelectAll');
+
+    if (label) label.textContent = `เลือกไว้ ${selected.length} รายการ`;
+    if (bar) bar.classList.toggle('hidden', selected.length === 0);
+    if (selectAll) {
+      const selectedOnScreen = rendered.filter(id => selected.indexOf(id) !== -1).length;
+      selectAll.checked = rendered.length > 0 && selectedOnScreen === rendered.length;
+      selectAll.indeterminate = selectedOnScreen > 0 && selectedOnScreen < rendered.length;
+    }
+  }
+
+  function openDeleteParticipantModal(participantId) {
+    const ids = participantId ? [participantId] : (CertiFlowState.selectedParticipantIds || []);
+    if (!ids.length) return;
+    CertiFlowState.pendingDeleteParticipantIds = ids;
+
+    const summary = document.getElementById('lblDeleteParticipantSummary');
+    if (summary) {
+      summary.textContent = ids.length === 1
+        ? `คุณกำลังลบผู้เข้าร่วม ${ids[0]} ถาวร กู้คืนไม่ได้ (เกียรติบัตรที่ผูกอยู่จะถูกลบไปด้วย หากยังไม่ออกเลขหรือถูกยกเลิกแล้ว)`
+        : `คุณกำลังลบผู้เข้าร่วม ${ids.length} รายการถาวร กู้คืนไม่ได้ (เกียรติบัตรที่ผูกอยู่จะถูกลบไปด้วย หากยังไม่ออกเลขหรือถูกยกเลิกแล้ว)`;
+    }
+    const reasonInput = document.getElementById('deleteParticipantReasonText');
+    if (reasonInput) reasonInput.value = '';
+
+    const editModal = document.getElementById('editParticipantModal');
+    if (editModal) editModal.classList.add('hidden');
+    const modal = document.getElementById('deleteParticipantModal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeDeleteParticipantModal() {
+    const modal = document.getElementById('deleteParticipantModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function handleConfirmDeleteParticipant(event) {
+    event.preventDefault();
+    const ids = CertiFlowState.pendingDeleteParticipantIds || [];
+    const reason = document.getElementById('deleteParticipantReasonText').value.trim();
+    if (!ids.length || !reason) return;
+
+    const request = ids.length === 1
+      ? callApi('deleteParticipant', { participantId: ids[0], reason })
+      : callApi('deleteParticipants', { participantIds: ids, reason });
+
+    request
+      .then((res) => {
+        closeDeleteParticipantModal();
+        clearParticipantSelection();
+        loadParticipantsList();
+        const skipped = res && Array.isArray(res.skipped) ? res.skipped : [];
+        if (skipped.length) {
+          showAlert(`ลบสำเร็จ ${res.deleted.length} รายการ — ข้าม ${skipped.length} รายการ: ${skipped.map(s => `${s.participantId} (${s.message})`).join('; ')}`, true);
+        } else {
+          showAlert('ลบผู้เข้าร่วมเรียบร้อย');
+        }
+      })
+      .catch((err) => showAlert(`ลบไม่สำเร็จ: ${err.message}`, true));
   }
 
   function openParticipantModal(participantId) {

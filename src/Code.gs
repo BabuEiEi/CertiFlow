@@ -19,6 +19,8 @@ const API_ROUTES = {
     validateImport: ['ADMIN', 'STAFF'],
     getParticipants: ['ADMIN', 'STAFF'],
     updateParticipant: ['ADMIN', 'STAFF'],
+    deleteParticipant: ['ADMIN'],
+    deleteParticipants: ['ADMIN'],
     getCertificates: ['ADMIN', 'STAFF'],
     getDashboardStats: ['ADMIN', 'STAFF'],
     assignNumbers: ['ADMIN', 'STAFF'],
@@ -234,6 +236,10 @@ function executeManagementAction(action, payload, userContext) {
       return ParticipantService.getParticipants(payload.activityId);
     case 'updateParticipant':
       return ParticipantService.updateParticipant(payload.participantId, payload.updates || payload);
+    case 'deleteParticipant':
+      return ParticipantService.deleteParticipant(payload.participantId, payload.reason);
+    case 'deleteParticipants':
+      return ParticipantService.deleteParticipants(payload.participantIds, payload.reason);
     case 'getCertificates':
       return CertificateService.getCertificates(payload.activityId, payload.filter || {});
     case 'getDashboardStats':
