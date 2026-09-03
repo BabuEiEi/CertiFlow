@@ -21,7 +21,8 @@
     <div>
       <label class="block text-xs font-medium text-slate-700 mb-1">เลือกกิจกรรม</label>
       <select id="certActivitySelect" onchange="loadCertificatesList()" class="w-full rounded-md border-slate-300 p-2 text-sm border bg-white">
-        <option value="">-- กิจกรรมทั้งหมด --</option>
+        <option value="">-- เลือกกิจกรรม --</option>
+        <option value="ALL">ทั้งหมดทุกกิจกรรม (อาจใช้เวลานาน)</option>
       </select>
     </div>
     <div>
@@ -75,10 +76,27 @@
         </thead>
         <tbody id="certTableBody" class="divide-y divide-slate-200">
           <tr>
-            <td colspan="7" class="px-4 py-6 text-center text-slate-400">กำลังโหลดข้อมูล...</td>
+            <td colspan="7" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงทะเบียนเกียรติบัตร</td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div id="certPaginationBar" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50 text-xs">
+      <div class="flex items-center gap-2">
+        <span id="certPaginationSummary" class="text-slate-600"></span>
+        <select id="certPageSizeSelect" onchange="changeCertPageSize(this.value)" class="rounded-md border-slate-300 border p-1.5 text-xs bg-white">
+          <option value="20">20 แถว/หน้า</option>
+          <option value="50" selected>50 แถว/หน้า</option>
+          <option value="100">100 แถว/หน้า</option>
+          <option value="ALL">ทั้งหมด</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="certPagePrev" onclick="certPagePrev()" class="px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium">ก่อนหน้า</button>
+        <div id="certPaginationNumbers" class="flex items-center gap-1"></div>
+        <button type="button" id="certPageNext" onclick="certPageNext()" class="px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium">ถัดไป</button>
+      </div>
     </div>
   </div>
 </section>
