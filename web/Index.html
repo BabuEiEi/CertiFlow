@@ -102,10 +102,15 @@
               var linkClass = 'flex items-center gap-3 px-4 py-3 border-l-4 transition ' +
                 (isActive
                   ? 'border-gold-400 bg-navy-900 text-white'
-                  : 'border-transparent text-navy-300 hover:text-white hover:bg-navy-900/60');
+                  : 'border-transparent text-navy-300 hover:text-white hover:bg-navy-900/60') +
+                (item.adminOnly ? ' js-admin-only-nav' : '');
+              // js-admin-only-nav is hidden by default in Styles.html and only revealed by
+              // activateManagementSession() once the session confirms an ADMIN. The server
+              // render cannot know the role (auth is a client-held token), so hidden-by-default
+              // is the safe direction: a STAFF never sees the link, even briefly.
               var paths = item.icon.split('||');
             ?>
-            <a href="<?= webAppUrl ?>?page=<?= item.key ?>" target="_top" <?= item.adminOnly ? 'data-admin-only' : '' ?> class="<?= linkClass ?>">
+            <a href="<?= webAppUrl ?>?page=<?= item.key ?>" target="_top" class="<?= linkClass ?>">
               <svg class="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                 <? paths.forEach(function(d) { ?><path stroke-linecap="round" stroke-linejoin="round" d="<?= d ?>" /><? }); ?>
               </svg>

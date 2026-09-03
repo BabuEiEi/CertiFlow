@@ -1,4 +1,11 @@
 <style>
+  /* Sidebar links reserved for ADMIN. Hidden until activateManagementSession() confirms the
+     role, so STAFF never sees them. !important because these links also carry Tailwind's
+     "flex" display utility, and the Tailwind Play CDN emits utilities in scan order — a plain
+     "display:none" here is not guaranteed to win that cascade. */
+  .js-admin-only-nav { display: none !important; }
+  .js-admin-only-nav.is-admin-visible { display: flex !important; }
+
   /* Custom utility styles if needed */
   .animate-spin-fast {
     animation: spin 0.6s linear infinite;
