@@ -78,6 +78,7 @@
     <div>
       <p class="text-sm font-semibold text-slate-800 mb-1">สร้างกิจกรรมใหม่</p>
       <p class="text-sm text-slate-700">กดปุ่ม "+ สร้างกิจกรรมใหม่" แล้วกรอกชื่อกิจกรรม ผู้จัด หน่วยงานที่ออก วันที่ (เลือกจากปฏิทิน) และตั้งค่ารูปแบบเลขที่เกียรติบัตร เช่น <span class="font-mono text-gold-700">เลขที่ สพม.พลอต ๐๐๐๑/๒๕๖๙</span></p>
+      <p class="text-sm text-slate-700 mt-1">ช่อง <strong>"ด้านการอบรม (ค่าตั้งต้นของกิจกรรม)"</strong> คือค่าที่จะพิมพ์ลง <span class="font-mono bg-slate-100 px-1 rounded">{{type}}</span> เมื่อไฟล์นำเข้าไม่ได้ระบุด้านการอบรมของคนนั้นไว้</p>
     </div>
 
     <div class="p-3 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
@@ -90,6 +91,7 @@
       <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
         <li>สร้างไฟล์ Google Slides ที่มีสไลด์หลักเพียง 1 หน้า</li>
         <li>ใส่ข้อความ <span class="font-mono bg-slate-100 px-1 rounded">{{name}}</span> ตรงตำแหน่งชื่อผู้รับ และ <span class="font-mono bg-slate-100 px-1 rounded">{{certNo}}</span> ตรงตำแหน่งเลขที่เกียรติบัตร (อย่างละ 1 ตำแหน่งเท่านั้น)</li>
+        <li>ใส่เพิ่มได้แบบไม่บังคับ: <span class="font-mono bg-slate-100 px-1 rounded">{{office}}</span> = สถานศึกษา/หน่วยงานของผู้รับ และ <span class="font-mono bg-slate-100 px-1 rounded">{{type}}</span> = ด้านการอบรม (เช่น ด้านการอ่าน, ด้านคณิตศาสตร์) อย่างละไม่เกิน 1 ตำแหน่ง — ถ้าเทมเพลตไม่มี 2 ตัวนี้ก็ใช้งานได้ตามปกติ</li>
         <li>คัดลอก Template ID จาก URL ของไฟล์ (ระหว่าง <span class="font-mono">/d/</span> กับ <span class="font-mono">/edit</span>) มาใส่ในฟอร์ม</li>
         <li>กด "ตรวจ Template" เพื่อเช็คว่าพบ placeholder ครบถูกต้อง</li>
         <li>กด "Preview" เพื่อดูตัวอย่างหน้าตาจริง (อาจใช้เวลา 3-8 วินาที)</li>
@@ -107,12 +109,17 @@
     <h3 class="text-base font-bold text-navy-900">5. นำเข้ารายชื่อ (Participants)</h3>
     <ol class="list-decimal list-inside text-sm text-slate-700 space-y-1.5">
       <li>กดปุ่ม "+ นำเข้ารายชื่อ (CSV/Text)" แล้วเลือกกิจกรรม</li>
-      <li>อัปโหลดไฟล์ CSV/XLSX (กด "ดาวน์โหลด Template Excel" ก่อนเพื่อได้หัวคอลัมน์ที่ถูกต้อง) หรือวางข้อความคั่นด้วยจุลภาค/Tab</li>
-      <li>กด "ตรวจสอบข้อมูลก่อนนำเข้า (Validate)" — ระบบแยกแถวเป็น <strong>ถูกต้อง / อาจซ้ำ / ผิดพลาด</strong></li>
+      <li>อัปโหลดไฟล์ CSV/XLSX (กด "ดาวน์โหลด Template Excel" ก่อนเพื่อได้หัวคอลัมน์ที่ถูกต้อง) หรือวางข้อความคั่นด้วยจุลภาค/Tab ตามลำดับ <span class="font-mono text-xs">คำนำหน้า, ชื่อ, นามสกุล, โรงเรียน/หน่วยงาน, ด้านการอบรม, สถานะ</span></li>
+      <li>กด "ตรวจสอบข้อมูลก่อนนำเข้า (Validate)" — ระบบแยกแถวเป็น <strong>ถูกต้อง / อาจซ้ำ / ผิดพลาด</strong> และแสดงทั้งสถานศึกษาและด้านการอบรมของทุกแถวให้ตรวจก่อนบันทึก</li>
       <li>หากมีรายการ "อาจซ้ำ" และต้องการนำเข้าจริง ให้ติ๊ก "ยืนยันนำเข้ารายชื่อที่อาจซ้ำซ้อนด้วย"</li>
       <li>กด "ยืนยันการบันทึกนำเข้า" (นำเข้าได้สูงสุด 5,000 แถวต่อครั้ง)</li>
     </ol>
     <p class="text-sm text-slate-700">แต่ละแถวที่นำเข้าสำเร็จจะถูกสร้างเป็นผู้เข้าร่วม + เกียรติบัตร (สถานะ DRAFT รอออกเลข) โดยอัตโนมัติ แก้ไขข้อมูลรายคนได้จากปุ่ม "แก้ไข" ที่แถวนั้นในตาราง</p>
+    <div class="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700">
+      คอลัมน์ <strong>โรงเรียน/หน่วยงาน</strong> จะถูกพิมพ์ลงเกียรติบัตรที่ <span class="font-mono">{{office}}</span> และคอลัมน์ <strong>ด้านการอบรม</strong> ที่ <span class="font-mono">{{type}}</span> —
+      เว้นช่องด้านการอบรมว่างได้ ระบบจะใช้ "ด้านการอบรม (ค่าตั้งต้น)" ของกิจกรรมนั้นแทน
+      หากตารางตรวจสอบขึ้นว่าสถานศึกษาเป็น "— ว่าง —" แปลว่าหัวคอลัมน์ในไฟล์จับคู่ไม่ติด ให้ตั้งชื่อหัวคอลัมน์ให้มีคำว่า โรงเรียน / สถานศึกษา / หน่วยงาน หรือ school
+    </div>
   </div>
 
   <!-- 6. Certificates -->

@@ -34,7 +34,11 @@ const Config = {
       'startDate', 'endDate', 'issueDate', 'prefixText', 'prefix',
       'startNumber', 'endNumber', 'digitLength', 'separator', 'year',
       'numberFormat', 'templateId', 'status', 'createdBy', 'createdAt',
-      'updatedBy', 'updatedAt'
+      'updatedBy', 'updatedAt',
+      // Newly added columns go at the END: SheetService.initializeDatabase appends
+      // missing headers to the right of existing data, and several writers still
+      // build rows positionally from this list.
+      'trainingType'
     ],
     Users: [
       'userId', 'email', 'name', 'role', 'status', 'passwordSalt',
@@ -43,7 +47,7 @@ const Config = {
     Participants: [
       'participantId', 'activityId', 'prefixName', 'firstName', 'lastName',
       'school', 'participantStatus', 'importBatchId', 'sourceRow',
-      'createdAt', 'createdBy', 'updatedAt', 'updatedBy'
+      'createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'trainingType'
     ],
     Certificates: [
       'certificateId', 'activityId', 'participantId', 'certificateNo',
@@ -51,7 +55,7 @@ const Config = {
       'participantStatus', 'certificateStatus', 'originalPrefixName',
       'originalFirstName', 'originalLastName', 'issuedAt', 'issuedBy',
       'revokedAt', 'revokedBy', 'revokeReason', 'createdAt', 'createdBy',
-      'updatedAt', 'updatedBy'
+      'updatedAt', 'updatedBy', 'trainingType'
     ],
     GenerationQueue: [
       'queueId', 'activityId', 'jobType', 'startRow', 'endRow',

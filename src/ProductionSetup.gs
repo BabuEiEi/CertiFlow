@@ -40,6 +40,17 @@ function setupProductionEnvironment() {
 }
 
 /**
+ * Safe to re-run on an existing database: adds any schema column introduced by a
+ * release (e.g. trainingType) to the right of the current data, without creating a
+ * new spreadsheet, moving cells, or touching existing rows.
+ * Run this once from the Apps Script editor after deploying a release that adds columns.
+ * @return {Object} Which sheets existed and which were created
+ */
+function repairDatabaseSchema() {
+  return SheetService.initializeDatabase();
+}
+
+/**
  * EDIT the userId/password/name below directly in this editor before running,
  * then run once. Do not paste real production credentials into chat.
  */

@@ -69,7 +69,8 @@ const ParticipantService = {
       const firstName = typeof Validation !== 'undefined' ? Validation.sanitizeText(row.firstName) : String(row.firstName || '').trim();
       const lastName = typeof Validation !== 'undefined' ? Validation.sanitizeText(row.lastName) : String(row.lastName || '').trim();
       const school = typeof Validation !== 'undefined' ? Validation.sanitizeText(row.school) : String(row.school || '').trim();
-      
+      const trainingType = typeof Validation !== 'undefined' ? Validation.sanitizeText(row.trainingType) : String(row.trainingType || '').trim();
+
       let status = typeof Validation !== 'undefined' ? Validation.sanitizeText(row.participantStatus) : String(row.participantStatus || '').trim();
       if (!status) status = 'ผ่านการอบรม';
 
@@ -97,6 +98,7 @@ const ParticipantService = {
         firstName,
         lastName,
         school,
+        trainingType,
         participantStatus: status,
         duplicateKey: dupKey
       };
@@ -162,6 +164,10 @@ const ParticipantService = {
         return match ? Math.max(max, parseInt(match[1], 10)) : max;
       }, 0);
 
+      // Rows that leave "ด้านการอบรม" blank inherit the activity-level default.
+      const activity = typeof ActivityService !== 'undefined' ? ActivityService.getActivityById(cleanActivityId) : null;
+      const defaultTrainingType = activity ? String(activity.trainingType || '').trim() : '';
+
       const participantBatchMatrix = [];
       const certificateBatchMatrix = [];
 
@@ -174,6 +180,7 @@ const ParticipantService = {
         const firstName = Validation.sanitizeSheetText(item.firstName);
         const lastName = Validation.sanitizeSheetText(item.lastName);
         const school = Validation.sanitizeSheetText(item.school);
+        const trainingType = Validation.sanitizeSheetText(item.trainingType || defaultTrainingType);
 
         const pRow = [
         pId,
@@ -188,7 +195,8 @@ const ParticipantService = {
         now,
         actorEmail,
         now,
-        actorEmail
+        actorEmail,
+        trainingType
       ];
         participantBatchMatrix.push(pRow);
 
@@ -215,7 +223,8 @@ const ParticipantService = {
         now,
         actorEmail,
         now,
-        actorEmail
+        actorEmail,
+        trainingType
       ];
         certificateBatchMatrix.push(cRow);
       });

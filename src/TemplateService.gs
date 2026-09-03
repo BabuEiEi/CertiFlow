@@ -52,6 +52,8 @@ const TemplateService = {
       const pageElements = mainSlide.getPageElements();
       let foundNameCount = 0;
       let foundCertNoCount = 0;
+      let foundOfficeCount = 0;
+      let foundTypeCount = 0;
 
       pageElements.forEach(element => {
         if (element.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
@@ -64,6 +66,8 @@ const TemplateService = {
             if (text.includes('{{certNo}}')) {
               foundCertNoCount += (text.match(/\{\{certNo\}\}/g) || []).length;
             }
+            foundOfficeCount += (text.match(/\{\{office\}\}/g) || []).length;
+            foundTypeCount += (text.match(/\{\{type\}\}/g) || []).length;
           }
         }
       });
@@ -80,6 +84,10 @@ const TemplateService = {
         errors.push('พบ placeholder {{certNo}} ซ้ำมากกว่า 1 ตำแหน่ง');
       }
 
+      // {{office}} and {{type}} are optional, but a duplicate is always a template mistake.
+      if (foundOfficeCount > 1) errors.push('พบ placeholder {{office}} ซ้ำมากกว่า 1 ตำแหน่ง');
+      if (foundTypeCount > 1) errors.push('พบ placeholder {{type}} ซ้ำมากกว่า 1 ตำแหน่ง');
+
       return {
         valid: errors.length === 0,
         errors: errors,
@@ -87,7 +95,9 @@ const TemplateService = {
           templateId: cleanId,
           slideCount: slides.length,
           foundNameCount,
-          foundCertNoCount
+          foundCertNoCount,
+          foundOfficeCount,
+          foundTypeCount
         }
       };
 
@@ -116,6 +126,8 @@ const TemplateService = {
       const presentation = SlidesApp.openById(tempFile.getId());
       presentation.replaceAllText('{{name}}', 'นายตัวอย่าง ระบบทดสอบ');
       presentation.replaceAllText('{{certNo}}', NumberService.formatCertificateNo(activity, activity.startNumber || 1));
+      presentation.replaceAllText('{{office}}', 'โรงเรียนตัวอย่างวิทยา');
+      presentation.replaceAllText('{{type}}', String(activity.trainingType || 'ด้านการอ่าน'));
       const slideId = presentation.getSlides()[0].getObjectId();
       presentation.saveAndClose();
       const response = UrlFetchApp.fetch(`https://docs.google.com/presentation/d/${tempFile.getId()}/export/jpeg?id=${tempFile.getId()}&pageid=${slideId}`, {

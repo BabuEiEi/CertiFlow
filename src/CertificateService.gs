@@ -85,6 +85,7 @@ const CertificateService = {
     const newFirstName = updates.firstName !== undefined ? Validation.sanitizeSheetText(updates.firstName) : cert.firstName;
     const newLastName = updates.lastName !== undefined ? Validation.sanitizeSheetText(updates.lastName) : cert.lastName;
     const newSchool = updates.school !== undefined ? Validation.sanitizeSheetText(updates.school) : cert.school;
+    const newTrainingType = updates.trainingType !== undefined ? Validation.sanitizeSheetText(updates.trainingType) : cert.trainingType;
     if (!newFirstName || !newLastName) {
       throw new Error('ชื่อและนามสกุลจำเป็นต้องระบุ');
     }
@@ -95,6 +96,7 @@ const CertificateService = {
       firstName: newFirstName,
       lastName: newLastName,
       school: newSchool,
+      trainingType: newTrainingType,
       originalPrefixName: origPrefix,
       originalFirstName: origFirst,
       originalLastName: origLast,
@@ -462,6 +464,7 @@ const CertificateService = {
       firstName: certObj.firstName,
       lastName: certObj.lastName,
       school: certObj.school,
+      trainingType: certObj.trainingType,
       participantStatus: certObj.participantStatus,
       updatedAt: certObj.updatedAt,
       updatedBy: certObj.updatedBy

@@ -175,6 +175,8 @@ const ActivityService = {
         numberFormat,
         templateId: String(merged.templateId).trim(),
         status,
+        // Default printed for {{type}} when an imported row leaves the column blank.
+        trainingType: Validation.sanitizeSheetText(merged.trainingType),
         createdBy: existing ? existing.createdBy : actorEmail,
         createdAt: existing ? existing.createdAt : now,
         updatedBy: actorEmail,

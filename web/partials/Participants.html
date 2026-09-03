@@ -27,13 +27,14 @@
           <th class="px-4 py-3 text-left">คำนำหน้า</th>
           <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
           <th class="px-4 py-3 text-left">สถานศึกษา/หน่วยงาน</th>
+          <th class="px-4 py-3 text-left">ด้านการอบรม</th>
           <th class="px-4 py-3 text-center">สถานะ</th>
           <th class="px-4 py-3 text-right">จัดการ</th>
         </tr>
       </thead>
       <tbody id="participantTableBody" class="divide-y divide-slate-200">
         <tr>
-          <td colspan="6" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
+          <td colspan="7" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
         </tr>
       </tbody>
     </table>
@@ -62,13 +63,13 @@
           <button type="button" onclick="downloadImportTemplate()" class="text-xs text-navy-700 hover:text-navy-900 underline font-medium">ดาวน์โหลด Template Excel</button>
         </div>
         <input type="file" id="importFile" accept=".csv,.xlsx,.xls" onchange="handleImportFile(event)" class="w-full rounded-md border p-2 border-slate-300 text-xs">
-        <p id="importMappingStatus" class="text-xs text-slate-500 mt-1">ระบบจะจับคู่หัวคอลัมน์ prefixName/firstName/lastName/school/participantStatus อัตโนมัติ</p>
+        <p id="importMappingStatus" class="text-xs text-slate-500 mt-1">ระบบจะจับคู่หัวคอลัมน์ คำนำหน้า / ชื่อ / นามสกุล / โรงเรียน-หน่วยงาน / ด้านการอบรม / สถานะ อัตโนมัติ</p>
       </div>
 
       <div>
         <label class="block font-medium text-slate-700 mb-1">วางข้อมูลรายชื่อ (คั่นด้วยจุลภาค CSV หรือ Tab)</label>
-        <p class="text-xs text-slate-500 mb-2">รูปแบบคอลัมน์: `คำนำหน้า, ชื่อ, นามสกุล, สถานศึกษา/โรงเรียน, สถานะ` (ตัวอย่าง: `นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ผ่านการอบรม`)</p>
-        <textarea id="importTextData" rows="6" placeholder="นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ผ่านการอบรม&#10;นางสาว, สมหญิง, รักดี, โรงเรียนอนุบาล, เข้าร่วม" class="w-full rounded-md border p-3 border-slate-300 font-mono text-xs"></textarea>
+        <p class="text-xs text-slate-500 mb-2">รูปแบบคอลัมน์: `คำนำหน้า, ชื่อ, นามสกุล, สถานศึกษา/หน่วยงาน, ด้านการอบรม, สถานะ` (ตัวอย่าง: `นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ด้านการอ่าน, ผ่านการอบรม`) — เว้นช่อง "ด้านการอบรม" ว่างได้ ระบบจะใช้ค่าตั้งต้นของกิจกรรมแทน</p>
+        <textarea id="importTextData" rows="6" placeholder="นาย, ภัทรพล, แก้วเสนา, โรงเรียนสาธิต, ด้านการอ่าน, ผ่านการอบรม&#10;นางสาว, สมหญิง, รักดี, โรงเรียนอนุบาล, ด้านคณิตศาสตร์, เข้าร่วม" class="w-full rounded-md border p-3 border-slate-300 font-mono text-xs"></textarea>
       </div>
 
       <div class="flex justify-between items-center">
@@ -87,7 +88,8 @@
               <tr>
                 <th class="px-3 py-2 text-left">แถว</th>
                 <th class="px-3 py-2 text-left">ชื่อ-นามสกุล</th>
-                <th class="px-3 py-2 text-left">โรงเรียน</th>
+                <th class="px-3 py-2 text-left">สถานศึกษา/หน่วยงาน</th>
+                <th class="px-3 py-2 text-left">ด้านการอบรม</th>
                 <th class="px-3 py-2 text-left">ผลการตรวจ</th>
               </tr>
             </thead>
@@ -117,6 +119,7 @@
     <input type="hidden" id="editParticipantId">
     <div class="grid grid-cols-3 gap-2"><input id="editParticipantPrefix" placeholder="คำนำหน้า" class="border rounded p-2"><input id="editParticipantFirst" required placeholder="ชื่อ" class="border rounded p-2"><input id="editParticipantLast" required placeholder="นามสกุล" class="border rounded p-2"></div>
     <input id="editParticipantSchool" placeholder="โรงเรียน/หน่วยงาน" class="border rounded p-2 w-full">
+    <input id="editParticipantTrainingType" placeholder="ด้านการอบรม (เช่น ด้านการอ่าน)" class="border rounded p-2 w-full">
     <select id="editParticipantStatus" class="border rounded p-2 w-full"><option>เข้าร่วม</option><option>ผ่านการอบรม</option></select>
     <div class="text-right"><button type="button" onclick="closeParticipantModal()" class="px-3 py-2">ยกเลิก</button><button class="px-4 py-2 bg-navy-800 text-white rounded">บันทึก</button></div>
   </form>

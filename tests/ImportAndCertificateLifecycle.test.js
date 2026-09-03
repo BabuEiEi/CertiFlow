@@ -25,6 +25,52 @@ function testImportValidationAndDuplicates() {
   console.log('Import validation and duplicate detection test passed.');
 }
 
+function testImportCarriesSchoolAndTrainingType() {
+  const rows = [
+    { prefixName: 'นาย', firstName: 'ภัทรพล', lastName: 'แก้วเสนา', school: 'โรงเรียนสาธิต', trainingType: 'ด้านการอ่าน', participantStatus: 'ผ่านการอบรม' },
+    { prefixName: 'นางสาว', firstName: 'สมหญิง', lastName: 'รักดี', school: 'โรงเรียนอนุบาล', participantStatus: 'เข้าร่วม' }
+  ];
+
+  const validated = ParticipantService.validateImport('ACT001', rows);
+  assert.equal(validated.summary.valid, 2);
+  assert.equal(validated.validRows[0].school, 'โรงเรียนสาธิต', 'school must survive validation');
+  assert.equal(validated.validRows[0].trainingType, 'ด้านการอ่าน', 'trainingType must survive validation');
+  assert.equal(validated.validRows[1].trainingType, '', 'a blank trainingType stays blank until commit applies the activity default');
+
+  // Rows are written positionally, so their width must track Config.HEADERS exactly.
+  const written = {};
+  global.SheetService = {
+    readRows: () => [],
+    appendRowsBatch: (sheetName, matrix) => { written[sheetName] = matrix; return { startRow: 2, rowCount: matrix.length }; },
+    deleteRows: () => {}
+  };
+  global.ActivityService = { getActivityById: () => ({ activityId: 'ACT001', trainingType: 'ด้านวิทยาศาสตร์' }) };
+  try {
+    const result = ParticipantService.commitImport('ACT001', rows, false);
+    assert.equal(result.importedCount, 2);
+
+    const participantRow = written[Config.SHEETS.PARTICIPANTS][0];
+    const certificateRow = written[Config.SHEETS.CERTIFICATES][0];
+    assert.equal(participantRow.length, Config.HEADERS.Participants.length, 'Participant row width must match the header list');
+    assert.equal(certificateRow.length, Config.HEADERS.Certificates.length, 'Certificate row width must match the header list');
+    assert.equal(participantRow[Config.HEADERS.Participants.indexOf('school')], 'โรงเรียนสาธิต');
+    assert.equal(participantRow[Config.HEADERS.Participants.indexOf('trainingType')], 'ด้านการอ่าน');
+    assert.equal(certificateRow[Config.HEADERS.Certificates.indexOf('trainingType')], 'ด้านการอ่าน');
+
+    const inheritedRow = written[Config.SHEETS.PARTICIPANTS][1];
+    assert.equal(
+      inheritedRow[Config.HEADERS.Participants.indexOf('trainingType')],
+      'ด้านวิทยาศาสตร์',
+      'A blank trainingType must fall back to the activity default'
+    );
+  } finally {
+    delete global.SheetService;
+    delete global.ActivityService;
+  }
+
+  console.log('Import school and trainingType mapping test passed.');
+}
+
 function testCertificateLifecycleAndOriginalName() {
   const mockCert = {
     _rowIndex: 2,
@@ -171,6 +217,7 @@ function testBulkIssueAndRoundCap() {
 }
 
 testImportValidationAndDuplicates();
+testImportCarriesSchoolAndTrainingType();
 testCertificateLifecycleAndOriginalName();
 testCertificateReissue();
 testBulkRevokeAndDelete();

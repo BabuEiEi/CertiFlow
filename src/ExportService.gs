@@ -97,6 +97,9 @@ const ExportService = {
       const presentation = SlidesApp.openById(tempCopyId);
       presentation.replaceAllText('{{name}}', fullName);
       presentation.replaceAllText('{{certNo}}', certNo);
+      // Optional placeholders — a template that does not use them is unaffected.
+      presentation.replaceAllText('{{office}}', String(cert.school || ''));
+      presentation.replaceAllText('{{type}}', String(cert.trainingType || activity.trainingType || ''));
       presentation.saveAndClose();
 
       let exportBlob;

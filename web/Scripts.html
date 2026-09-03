@@ -186,6 +186,20 @@
     }
   });
 
+  /**
+   * Mobile side-navigation drawer. On lg screens the sidebar is permanently
+   * visible (lg:translate-x-0), so this only drives the small-screen drawer.
+   * @param {boolean} [show] Omit to toggle.
+   */
+  function toggleSideNav(show) {
+    const nav = document.getElementById('sideNav');
+    const overlay = document.getElementById('navOverlay');
+    if (!nav) return;
+    const shouldShow = show === undefined ? nav.classList.contains('-translate-x-full') : show;
+    nav.classList.toggle('-translate-x-full', !shouldShow);
+    if (overlay) overlay.classList.toggle('hidden', !shouldShow);
+  }
+
   function showLoginModal(message = '') {
     const modal = document.getElementById('loginModal');
     const errorBox = document.getElementById('loginError');
@@ -660,6 +674,7 @@
       document.getElementById('actDigitLength').value = activityObj.digitLength || 4;
       document.getElementById('actSeparator').value = activityObj.separator || '/';
       document.getElementById('actTemplateId').value = activityObj.templateId || '';
+      document.getElementById('actTrainingType').value = activityObj.trainingType || '';
       document.getElementById('actStatus').value = activityObj.status || 'DRAFT';
     } else {
       if (title) title.textContent = 'สร้างกิจกรรมใหม่';
@@ -760,6 +775,7 @@
       digitLength: document.getElementById('actDigitLength').value,
       separator: document.getElementById('actSeparator').value,
       templateId: document.getElementById('actTemplateId').value.trim(),
+      trainingType: document.getElementById('actTrainingType').value,
       status: document.getElementById('actStatus').value
     };
 
@@ -817,7 +833,7 @@
         if (!tbody) return;
 
         if (!participants || participants.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
           return;
         }
 
@@ -827,6 +843,7 @@
             <td class="px-4 py-3 text-slate-600">${escapeHtml(p.prefixName || '-')}</td>
             <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</td>
             <td class="px-4 py-3 text-slate-600">${escapeHtml(p.school || '-')}</td>
+            <td class="px-4 py-3 text-slate-600">${escapeHtml(p.trainingType || '-')}</td>
             <td class="px-4 py-3 text-center">
               <span class="px-2 py-0.5 rounded text-xs font-semibold bg-navy-50 text-navy-700">${escapeHtml(p.participantStatus)}</span>
             </td>
@@ -845,6 +862,7 @@
     document.getElementById('editParticipantFirst').value = participant.firstName || '';
     document.getElementById('editParticipantLast').value = participant.lastName || '';
     document.getElementById('editParticipantSchool').value = participant.school || '';
+    document.getElementById('editParticipantTrainingType').value = participant.trainingType || '';
     document.getElementById('editParticipantStatus').value = participant.participantStatus || 'ผ่านการอบรม';
     document.getElementById('editParticipantModal').classList.remove('hidden');
   }
@@ -859,6 +877,7 @@
       firstName: document.getElementById('editParticipantFirst').value,
       lastName: document.getElementById('editParticipantLast').value,
       school: document.getElementById('editParticipantSchool').value,
+      trainingType: document.getElementById('editParticipantTrainingType').value,
       participantStatus: document.getElementById('editParticipantStatus').value
     };
     callApi('updateParticipant', { participantId, updates })
@@ -876,6 +895,9 @@
     if (modal) modal.classList.add('hidden');
   }
 
+  /* Import columns, in the order used by both the Excel template and the pasted-text format. */
+  const IMPORT_FIELDS = ['prefixName', 'firstName', 'lastName', 'school', 'trainingType', 'participantStatus'];
+
   function parseInputTextToRows(text) {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     return lines.map(line => {
@@ -886,17 +908,18 @@
         firstName: parts[1] || '',
         lastName: parts[2] || '',
         school: parts[3] || '',
-        participantStatus: parts[4] || 'ผ่านการอบรม'
+        trainingType: parts[4] || '',
+        participantStatus: parts[5] || 'ผ่านการอบรม'
       };
     });
   }
 
   function downloadImportTemplate() {
     if (typeof XLSX === 'undefined') return showAlert('ตัวสร้างไฟล์ XLSX โหลดไม่สำเร็จ', true);
-    const header = ['คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'สถานะ'];
+    const header = ['คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'ด้านการอบรม', 'สถานะ'];
     const sample = [
-      ['นาย', 'ภัทรพล', 'แก้วเสนา', 'โรงเรียนสาธิต', 'ผ่านการอบรม'],
-      ['นางสาว', 'สมหญิง', 'รักดี', 'โรงเรียนอนุบาล', 'เข้าร่วม']
+      ['นาย', 'ภัทรพล', 'แก้วเสนา', 'โรงเรียนสาธิต', 'ด้านการอ่าน', 'ผ่านการอบรม'],
+      ['นางสาว', 'สมหญิง', 'รักดี', 'โรงเรียนอนุบาล', 'ด้านคณิตศาสตร์', 'เข้าร่วม']
     ];
     const sheet = XLSX.utils.aoa_to_sheet([header, ...sample]);
     sheet['!cols'] = header.map(() => ({ wch: 20 }));
@@ -917,21 +940,40 @@
         const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
         if (!matrix.length) throw new Error('ไฟล์ไม่มีข้อมูล');
         const aliases = {
-          prefixName: ['prefixname', 'คำนำหน้า'],
+          prefixName: ['prefixname', 'คำนำหน้า', 'คำนำหน้าชื่อ'],
           firstName: ['firstname', 'ชื่อ'],
           lastName: ['lastname', 'นามสกุล'],
-          school: ['school', 'โรงเรียน', 'สถานศึกษา', 'หน่วยงาน'],
-          participantStatus: ['participantstatus', 'สถานะ']
+          // The bundled template ships "โรงเรียน/หน่วยงาน"; normalization strips the
+          // slash, so every spelling of the combined heading has to be listed here.
+          school: ['school', 'office', 'โรงเรียน', 'สถานศึกษา', 'หน่วยงาน',
+            'โรงเรียนหน่วยงาน', 'สถานศึกษาหน่วยงาน', 'โรงเรียนสถานศึกษา', 'สถานศึกษาโรงเรียน'],
+          trainingType: ['type', 'trainingtype', 'ด้าน', 'ด้านการอบรม', 'ประเภท', 'ประเภทการอบรม', 'หลักสูตร', 'กลุ่มสาระ', 'วิชา'],
+          participantStatus: ['participantstatus', 'status', 'สถานะ', 'สถานะผู้เข้าร่วม']
         };
-        const normalizedHeader = matrix[0].map(value => String(value).toLowerCase().replace(/[\s_-]/g, ''));
-        const indices = Object.keys(aliases).map(key => normalizedHeader.findIndex(value => aliases[key].includes(value)));
+        // Strip every separator a human might type inside a heading, not just spaces.
+        const normalizedHeader = matrix[0].map(value => String(value).toLowerCase().replace(/[\s_\-/\\().]/g, ''));
+        const indices = IMPORT_FIELDS.map(field => {
+          const exact = normalizedHeader.findIndex(value => aliases[field].includes(value));
+          if (exact >= 0) return exact;
+          // Fall back to a substring match so headings like "ชื่อโรงเรียน" still map.
+          return normalizedHeader.findIndex(value => value && aliases[field].some(alias => value.includes(alias)));
+        });
         const hasHeader = indices[1] >= 0 && indices[2] >= 0;
-        const mappedIndices = hasHeader ? indices : [0, 1, 2, 3, 4];
+        const mappedIndices = hasHeader ? indices : IMPORT_FIELDS.map((field, i) => i);
+        const statusFieldIndex = IMPORT_FIELDS.indexOf('participantStatus');
         const dataRows = (hasHeader ? matrix.slice(1) : matrix)
           .filter(row => row.some(value => String(value).trim()))
-          .map(row => mappedIndices.map((index, fieldIndex) => index >= 0 ? row[index] : (fieldIndex === 4 ? 'ผ่านการอบรม' : '')));
+          .map(row => mappedIndices.map((index, fieldIndex) => {
+            const value = index >= 0 ? row[index] : '';
+            if (fieldIndex === statusFieldIndex && !String(value).trim()) return 'ผ่านการอบรม';
+            return value;
+          }));
+
+        const unmatched = IMPORT_FIELDS.filter((field, i) => hasHeader && indices[i] < 0);
         document.getElementById('importTextData').value = dataRows.map(row => row.join('\t')).join('\n');
-        document.getElementById('importMappingStatus').textContent = `อ่าน ${dataRows.length} แถว — ${hasHeader ? 'จับคู่หัวคอลัมน์อัตโนมัติแล้ว' : 'ใช้ลำดับคอลัมน์มาตรฐาน 5 ช่อง'}`;
+        document.getElementById('importMappingStatus').textContent = hasHeader
+          ? `อ่าน ${dataRows.length} แถว — จับคู่หัวคอลัมน์อัตโนมัติแล้ว${unmatched.length ? ` (ไม่พบคอลัมน์: ${unmatched.join(', ')} จะเว้นว่างไว้)` : ''}`
+          : `อ่าน ${dataRows.length} แถว — ใช้ลำดับคอลัมน์มาตรฐาน ${IMPORT_FIELDS.length} ช่อง`;
       } catch (error) {
         showAlert(`อ่านไฟล์ไม่สำเร็จ: ${error.message}`, true);
       }
@@ -980,13 +1022,13 @@
         if (tbody) {
           let rowsHtml = '';
           res.validRows.forEach(r => {
-            rowsHtml += `<tr><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium">${escapeHtml(r.prefixName)}${escapeHtml(r.firstName)} ${escapeHtml(r.lastName)}</td><td class="px-3 py-1.5">${escapeHtml(r.school)}</td><td class="px-3 py-1.5 text-emerald-600 font-bold">✓ ถูกต้อง</td></tr>`;
+            rowsHtml += `<tr><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium">${escapeHtml(r.prefixName)}${escapeHtml(r.firstName)} ${escapeHtml(r.lastName)}</td><td class="px-3 py-1.5">${escapeHtml(r.school) || '<span class="text-rose-500">— ว่าง —</span>'}</td><td class="px-3 py-1.5">${escapeHtml(r.trainingType) || '<span class="text-slate-400">ใช้ค่าของกิจกรรม</span>'}</td><td class="px-3 py-1.5 text-emerald-600 font-bold">✓ ถูกต้อง</td></tr>`;
           });
           res.duplicateRows.forEach(r => {
-            rowsHtml += `<tr class="bg-amber-50"><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium text-amber-900">${escapeHtml(r.prefixName)}${escapeHtml(r.firstName)} ${escapeHtml(r.lastName)}</td><td class="px-3 py-1.5 text-amber-900">${escapeHtml(r.school)}</td><td class="px-3 py-1.5 text-amber-700 font-bold">${escapeHtml(r.duplicateReason)}</td></tr>`;
+            rowsHtml += `<tr class="bg-amber-50"><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium text-amber-900">${escapeHtml(r.prefixName)}${escapeHtml(r.firstName)} ${escapeHtml(r.lastName)}</td><td class="px-3 py-1.5 text-amber-900">${escapeHtml(r.school)}</td><td class="px-3 py-1.5 text-amber-900">${escapeHtml(r.trainingType)}</td><td class="px-3 py-1.5 text-amber-700 font-bold">${escapeHtml(r.duplicateReason)}</td></tr>`;
           });
           res.errorRows.forEach(r => {
-            rowsHtml += `<tr class="bg-rose-50"><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium text-rose-900">${escapeHtml(r.row.firstName)} ${escapeHtml(r.row.lastName)}</td><td class="px-3 py-1.5 text-rose-900">${escapeHtml(r.row.school)}</td><td class="px-3 py-1.5 text-rose-600 font-bold">✕ ${escapeHtml(r.error)}</td></tr>`;
+            rowsHtml += `<tr class="bg-rose-50"><td class="px-3 py-1.5">${r.sourceRow}</td><td class="px-3 py-1.5 font-medium text-rose-900">${escapeHtml(r.row.firstName)} ${escapeHtml(r.row.lastName)}</td><td class="px-3 py-1.5 text-rose-900">${escapeHtml(r.row.school)}</td><td class="px-3 py-1.5 text-rose-900">${escapeHtml(r.row.trainingType)}</td><td class="px-3 py-1.5 text-rose-600 font-bold">✕ ${escapeHtml(r.error)}</td></tr>`;
           });
           tbody.innerHTML = rowsHtml;
         }
@@ -1319,7 +1361,7 @@
       ? activitySelect.selectedOptions[0].textContent
       : 'ทุกกิจกรรม';
 
-    const header = ['Certificate ID', 'เลขที่เกียรติบัตร', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'สถานะผู้เข้าร่วม', 'สถานะเกียรติบัตร'];
+    const header = ['Certificate ID', 'เลขที่เกียรติบัตร', 'คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'ด้านการอบรม', 'สถานะผู้เข้าร่วม', 'สถานะเกียรติบัตร'];
     const rows = certs.map(c => [
       c.certificateId || '',
       c.certificateNo || '',
@@ -1327,6 +1369,7 @@
       c.firstName || '',
       c.lastName || '',
       c.school || '',
+      c.trainingType || '',
       c.participantStatus || '',
       c.certificateStatus || ''
     ]);
@@ -1367,6 +1410,7 @@
     document.getElementById('editCertFirst').value = cert.firstName || '';
     document.getElementById('editCertLast').value = cert.lastName || '';
     document.getElementById('editCertSchool').value = cert.school || '';
+    document.getElementById('editCertTrainingType').value = cert.trainingType || '';
 
     const modal = document.getElementById('editCertModal');
     if (modal) modal.classList.remove('hidden');
@@ -1384,7 +1428,8 @@
       prefixName: document.getElementById('editCertPrefix').value,
       firstName: document.getElementById('editCertFirst').value,
       lastName: document.getElementById('editCertLast').value,
-      school: document.getElementById('editCertSchool').value
+      school: document.getElementById('editCertSchool').value,
+      trainingType: document.getElementById('editCertTrainingType').value
     };
 
     callApi('updateCertificate', { certificateId, updates })

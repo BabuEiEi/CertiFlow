@@ -7,10 +7,10 @@ const Validation = require('../src/Validation.gs');
 
 function testSchemaDefinitions() {
   assert.ok(Config.HEADERS.Settings.length === 5, 'Settings headers length mismatch');
-  assert.ok(Config.HEADERS.Activities.length === 22, 'Activities headers length mismatch');
+  assert.ok(Config.HEADERS.Activities.length === 23, 'Activities headers length mismatch');
   assert.ok(Config.HEADERS.Users.length === 10, 'Users headers length mismatch');
-  assert.ok(Config.HEADERS.Participants.length === 13, 'Participants headers length mismatch');
-  assert.ok(Config.HEADERS.Certificates.length === 23, 'Certificates headers length mismatch');
+  assert.ok(Config.HEADERS.Participants.length === 14, 'Participants headers length mismatch');
+  assert.ok(Config.HEADERS.Certificates.length === 24, 'Certificates headers length mismatch');
   assert.ok(Config.HEADERS.GenerationQueue.length === 14, 'GenerationQueue headers length mismatch');
   assert.ok(Config.HEADERS.AuditLogs.length === 10, 'AuditLogs headers length mismatch');
   assert.equal(Config.HEADERS.CertificateReports.length, 8);
