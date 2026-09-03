@@ -5,6 +5,19 @@
 function setupProductionEnvironment() {
   const props = PropertiesService.getScriptProperties();
 
+  // Guard: this function creates a BRAND NEW empty database and repoints the script
+  // at it. Running it a second time silently orphans the live data (the old file is
+  // still in Drive, but nothing reads it any more), so refuse unless the pointer is
+  // genuinely unset. Use repairDatabaseSchema() for schema updates instead.
+  const existingDbId = props.getProperty(Config.KEYS.DATABASE_SPREADSHEET_ID);
+  if (existingDbId) {
+    throw new Error(
+      `ระบบมีฐานข้อมูลอยู่แล้ว (DATABASE_SPREADSHEET_ID = ${existingDbId}) ` +
+      'setupProductionEnvironment() ใช้สำหรับติดตั้งครั้งแรกเท่านั้น ' +
+      'ถ้าต้องการเพิ่มคอลัมน์ใหม่ให้รัน repairDatabaseSchema() แทน'
+    );
+  }
+
   // 1. Database spreadsheet
   const ss = SpreadsheetApp.create('CertiFlow Database');
   const defaultSheet = ss.getSheets()[0];
@@ -48,6 +61,69 @@ function setupProductionEnvironment() {
  */
 function repairDatabaseSchema() {
   return SheetService.initializeDatabase();
+}
+
+/**
+ * Recovery step 1 of 2 — list every "CertiFlow Database" spreadsheet in Drive with
+ * its row counts, so the one holding the real data can be told apart from an empty
+ * one accidentally created by setupProductionEnvironment().
+ * Read the result in the Execution log; the entry with real row counts is the one to keep.
+ * @return {Array<Object>}
+ */
+function findCertiFlowDatabases() {
+  const currentId = PropertiesService.getScriptProperties().getProperty(Config.KEYS.DATABASE_SPREADSHEET_ID);
+  const files = DriveApp.getFilesByName('CertiFlow Database');
+  const found = [];
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const entry = {
+      spreadsheetId: file.getId(),
+      url: file.getUrl(),
+      createdAt: file.getDateCreated().toISOString(),
+      lastUpdated: file.getLastUpdated().toISOString(),
+      isCurrentlyUsed: file.getId() === currentId,
+      rowCounts: {}
+    };
+    try {
+      const ss = SpreadsheetApp.openById(file.getId());
+      [Config.SHEETS.ACTIVITIES, Config.SHEETS.PARTICIPANTS, Config.SHEETS.CERTIFICATES, Config.SHEETS.USERS]
+        .forEach(name => {
+          const sheet = ss.getSheetByName(name);
+          entry.rowCounts[name] = sheet ? Math.max(0, sheet.getLastRow() - 1) : 'ไม่มีชีตนี้';
+        });
+    } catch (e) {
+      entry.rowCounts = `เปิดไฟล์ไม่ได้: ${e.message}`;
+    }
+    found.push(entry);
+  }
+
+  Logger.log(JSON.stringify({ currentId, found }, null, 2));
+  return found;
+}
+
+/**
+ * Recovery step 2 of 2 — point the script back at an existing database spreadsheet.
+ * EDIT the id below (copy it from findCertiFlowDatabases()) before running.
+ * Verifies the target really is a CertiFlow database before switching.
+ * @return {Object}
+ */
+function useDatabaseSpreadsheetNow() {
+  const spreadsheetId = 'CHANGE_ME';
+
+  if (spreadsheetId === 'CHANGE_ME') {
+    throw new Error('ใส่ spreadsheetId ของฐานข้อมูลที่ต้องการใช้ในฟังก์ชันนี้ก่อนกด Run');
+  }
+  const ss = SpreadsheetApp.openById(spreadsheetId);
+  const missing = Object.keys(Config.HEADERS).filter(name => !ss.getSheetByName(name));
+  if (missing.length) {
+    throw new Error(`ไฟล์นี้ไม่ใช่ฐานข้อมูล CertiFlow ที่สมบูรณ์ (ขาดชีต: ${missing.join(', ')})`);
+  }
+
+  PropertiesService.getScriptProperties().setProperty(Config.KEYS.DATABASE_SPREADSHEET_ID, spreadsheetId);
+  const result = { databaseSpreadsheetId: spreadsheetId, url: ss.getUrl(), schemaRepair: SheetService.initializeDatabase() };
+  Logger.log(JSON.stringify(result, null, 2));
+  return result;
 }
 
 /**
