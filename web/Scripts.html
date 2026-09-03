@@ -284,7 +284,13 @@
     if (logoutButton) logoutButton.classList.remove('hidden');
 
     document.querySelectorAll('[data-admin-only]').forEach(element => {
-      element.classList.toggle('hidden', user.role !== 'ADMIN');
+      const shouldHide = user.role !== 'ADMIN';
+      element.classList.toggle('hidden', shouldHide);
+      // The Tailwind Play CDN generates utility CSS by scanning class names in source
+      // order, so ".hidden" does not reliably win the cascade against a "flex"/"block"
+      // display utility already on the same element (e.g. the sidebar nav links) —
+      // force it with an inline style, which always wins regardless of stylesheet order.
+      element.style.display = shouldHide ? 'none' : '';
     });
 
     if (document.getElementById('settingsSection') && user.role !== 'ADMIN') {

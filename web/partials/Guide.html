@@ -34,18 +34,18 @@
         </thead>
         <tbody class="divide-y divide-slate-200">
           <tr><td class="px-3 py-2">ภาพรวม (Dashboard)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
-          <tr><td class="px-3 py-2">จัดการกิจกรรม (สร้าง/แก้ไข)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
-          <tr><td class="px-3 py-2">ลบกิจกรรม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
-          <tr><td class="px-3 py-2">นำเข้ารายชื่อ / แก้ไขผู้เข้าร่วม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">ดูรายการกิจกรรม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
+          <tr><td class="px-3 py-2">สร้าง / แก้ไข / ลบกิจกรรม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕ (ดูอย่างเดียว)</td></tr>
+          <tr><td class="px-3 py-2">นำเข้ารายชื่อ / แก้ไข / ลบผู้เข้าร่วม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
           <tr><td class="px-3 py-2">ออกเลข / แก้ไข / revoke / reissue เกียรติบัตร</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
-          <tr><td class="px-3 py-2">ลบเกียรติบัตร (เฉพาะที่ยังไม่ออกเลข)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+          <tr><td class="px-3 py-2">ลบเกียรติบัตรถาวรจากทะเบียน (DRAFT/PENDING/REVOKED)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
           <tr><td class="px-3 py-2">ตั้งค่าระบบ (Settings)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕ (มองไม่เห็นเมนู)</td></tr>
           <tr><td class="px-3 py-2">จัดการผู้ใช้งาน</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
           <tr><td class="px-3 py-2">Audit Logs / รายงานปัญหาจากสาธารณะ</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="text-xs text-slate-500">โดยสรุป: STAFF ทำงานประจำวันได้ครบ (สร้างกิจกรรม, นำเข้ารายชื่อ, ออกเลข, แก้ไข/ยกเลิกเกียรติบัตร) ส่วนงานที่กระทบความปลอดภัยของระบบหรือลบข้อมูลถาวรสงวนไว้ให้ ADMIN เท่านั้น</p>
+    <p class="text-xs text-slate-500">โดยสรุป: STAFF ทำงานประจำวันได้ครบ (นำเข้า/แก้ไข/ลบผู้เข้าร่วม, ออกเลข/แก้ไข/ยกเลิก/ออกใหม่เกียรติบัตร) ยกเว้นการสร้าง/แก้ไข/ลบกิจกรรม (ดูได้อย่างเดียว) ส่วนงานที่กระทบความปลอดภัยของระบบหรือลบข้อมูลถาวรออกจากทะเบียนสงวนไว้ให้ ADMIN เท่านั้น</p>
   </div>
 
   <!-- 2. Login -->
@@ -101,7 +101,7 @@
 
     <div>
       <p class="text-sm font-semibold text-slate-800 mb-1">แก้ไข / ลบกิจกรรม</p>
-      <p class="text-sm text-slate-700">แก้ไขได้แม้มีเกียรติบัตรออกไปแล้ว (ยกเว้นลดเลขเริ่มต้น) ส่วนการลบทำได้เฉพาะ ADMIN และเฉพาะกิจกรรมที่ยังไม่มีข้อมูลอ้างอิง</p>
+      <p class="text-sm text-slate-700">แก้ไขได้แม้มีเกียรติบัตรออกไปแล้ว (ยกเว้นลดเลขเริ่มต้น) ส่วนการลบทำได้เฉพาะ ADMIN เท่านั้น — กิจกรรมที่ยังไม่มีผู้เข้าร่วม/เกียรติบัตรผูกอยู่ลบได้ทันที ส่วนกิจกรรมที่ปิดแล้ว (CLOSED) ลบได้เช่นกันแต่ระบบจะลบผู้เข้าร่วมและเกียรติบัตรที่ผูกอยู่ทั้งหมดไปด้วย (กู้คืนไม่ได้) กิจกรรมที่ยังไม่ปิดและมีข้อมูลอ้างอิงจะลบไม่ได้ ต้องเปลี่ยนสถานะเป็น CLOSED ก่อน</p>
     </div>
   </div>
 
@@ -116,6 +116,7 @@
       <li>กด "ยืนยันการบันทึกนำเข้า" (นำเข้าได้สูงสุด 5,000 แถวต่อครั้ง)</li>
     </ol>
     <p class="text-sm text-slate-700">แต่ละแถวที่นำเข้าสำเร็จจะถูกสร้างเป็นผู้เข้าร่วม + เกียรติบัตร (สถานะ DRAFT รอออกเลข) โดยอัตโนมัติ แก้ไขข้อมูลรายคนได้จากปุ่ม "แก้ไข" ที่แถวนั้นในตาราง</p>
+    <p class="text-sm text-slate-700"><strong>ลบผู้เข้าร่วม</strong> (ADMIN และ STAFF ทำได้): ติ๊กเลือกทีละคนหรือติ๊กช่องหัวตารางเพื่อเลือกทั้งหมด แล้วกด "ลบที่เลือก" หรือกด "ลบ" ที่แถวนั้น/ในหน้าต่างแก้ไข — ต้องระบุเหตุผลก่อนยืนยันทุกครั้ง ระบบจะลบเกียรติบัตรที่ผูกกับคนนั้นไปด้วย แต่ถ้าเกียรติบัตรออกเลขแล้ว (ISSUED) จะลบไม่ได้ ต้อง "ยกเลิก" เกียรติบัตรที่หน้ารายการเกียรติบัตรก่อน</p>
     <div class="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-700">
       คอลัมน์ <strong>โรงเรียน/หน่วยงาน</strong> จะถูกพิมพ์ลงเกียรติบัตรที่ <span class="font-mono">{{office}}</span> และคอลัมน์ <strong>ด้านการอบรม</strong> ที่ <span class="font-mono">{{type}}</span> —
       เว้นช่องด้านการอบรมว่างได้ ระบบจะใช้ค่าที่ตั้งไว้ในหน้ากิจกรรมแทน (ถ้ากิจกรรมเลือก "ไม่มี" ก็ปล่อยว่างทั้งคอลัมน์ได้เลย)
