@@ -33,6 +33,37 @@ const ExportService = {
   },
 
   /**
+   * Replace an optional {{qr}} placeholder shape with a QR code image linking to
+   * the certificate's public verification page. Templates without a {{qr}} shape
+   * are left untouched, same as the optional {{office}}/{{type}} text placeholders.
+   * @param {SlidesApp.Presentation} presentation
+   * @param {string} verificationUrl
+   */
+  insertQrCode_(presentation, verificationUrl) {
+    if (!verificationUrl) return;
+    const slide = presentation.getSlides()[0];
+    let qrShape = null;
+    slide.getPageElements().forEach(element => {
+      if (qrShape || element.getPageElementType() !== SlidesApp.PageElementType.SHAPE) return;
+      const shape = element.asShape();
+      if (shape.getText() && shape.getText().asString().includes('{{qr}}')) {
+        qrShape = shape;
+      }
+    });
+    if (!qrShape) return;
+
+    const width = qrShape.getWidth();
+    const height = qrShape.getHeight();
+    const size = Math.min(width, height);
+    const left = qrShape.getLeft() + (width - size) / 2;
+    const top = qrShape.getTop() + (height - size) / 2;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(verificationUrl)}`;
+
+    qrShape.remove();
+    slide.insertImage(qrImageUrl, left, top, size, size);
+  },
+
+  /**
    * Generate temporary preview or export blob / base64 payload
    * @param {string} certificateId
    * @param {string} format 'pdf' | 'jpeg'
@@ -100,6 +131,8 @@ const ExportService = {
       // Optional placeholders — a template that does not use them is unaffected.
       presentation.replaceAllText('{{office}}', String(cert.school || ''));
       presentation.replaceAllText('{{type}}', String(cert.trainingType || activity.trainingType || ''));
+      const verificationUrl = typeof SearchService !== 'undefined' ? SearchService.getVerificationUrl(cleanId) : '';
+      this.insertQrCode_(presentation, verificationUrl);
       presentation.saveAndClose();
 
       let exportBlob;

@@ -54,6 +54,7 @@ const TemplateService = {
       let foundCertNoCount = 0;
       let foundOfficeCount = 0;
       let foundTypeCount = 0;
+      let foundQrCount = 0;
 
       pageElements.forEach(element => {
         if (element.getPageElementType() === SlidesApp.PageElementType.SHAPE) {
@@ -68,6 +69,7 @@ const TemplateService = {
             }
             foundOfficeCount += (text.match(/\{\{office\}\}/g) || []).length;
             foundTypeCount += (text.match(/\{\{type\}\}/g) || []).length;
+            foundQrCount += (text.match(/\{\{qr\}\}/g) || []).length;
           }
         }
       });
@@ -84,9 +86,10 @@ const TemplateService = {
         errors.push('พบ placeholder {{certNo}} ซ้ำมากกว่า 1 ตำแหน่ง');
       }
 
-      // {{office}} and {{type}} are optional, but a duplicate is always a template mistake.
+      // {{office}}, {{type}} and {{qr}} are optional, but a duplicate is always a template mistake.
       if (foundOfficeCount > 1) errors.push('พบ placeholder {{office}} ซ้ำมากกว่า 1 ตำแหน่ง');
       if (foundTypeCount > 1) errors.push('พบ placeholder {{type}} ซ้ำมากกว่า 1 ตำแหน่ง');
+      if (foundQrCount > 1) errors.push('พบ placeholder {{qr}} ซ้ำมากกว่า 1 ตำแหน่ง');
 
       return {
         valid: errors.length === 0,
@@ -97,7 +100,8 @@ const TemplateService = {
           foundNameCount,
           foundCertNoCount,
           foundOfficeCount,
-          foundTypeCount
+          foundTypeCount,
+          foundQrCount
         }
       };
 
@@ -128,6 +132,8 @@ const TemplateService = {
       presentation.replaceAllText('{{certNo}}', NumberService.formatCertificateNo(activity, activity.startNumber || 1));
       presentation.replaceAllText('{{office}}', 'โรงเรียนตัวอย่างวิทยา');
       presentation.replaceAllText('{{type}}', String(activity.trainingType || 'ด้านการอ่าน'));
+      const previewVerificationUrl = typeof SearchService !== 'undefined' ? SearchService.getVerificationUrl(`PREVIEW-${activity.activityId}`) : '';
+      ExportService.insertQrCode_(presentation, previewVerificationUrl);
       const slideId = presentation.getSlides()[0].getObjectId();
       presentation.saveAndClose();
       const response = UrlFetchApp.fetch(`https://docs.google.com/presentation/d/${tempFile.getId()}/export/jpeg?id=${tempFile.getId()}&pageid=${slideId}`, {
