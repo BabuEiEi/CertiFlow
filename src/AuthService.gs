@@ -208,13 +208,22 @@ const AuthService = {
       return null;
     }
 
-    // Re-read role/status so disabling an account takes effect immediately.
+    // Re-read role/status so disabling an account takes effect immediately. A failed
+    // lookup denies this call but must NOT drop the cached session: a transient Users
+    // sheet read failure during a long batch would otherwise log the operator out for
+    // good, mid-run. A genuinely disabled account keeps being denied here every call.
     const current = this.getUserContext(session.userId);
     if (current.isPublicUser) {
-      this.logout(cleanToken);
       return null;
     }
-    return { ...current, expiresAt: session.expiresAt };
+
+    // Sliding expiry: an operator working continuously never hits the hard TTL edge
+    // in the middle of a batch.
+    const renewed = { ...session, expiresAt: Date.now() + (this.SESSION_TTL_SECONDS * 1000) };
+    if (cache) cache.put(`session:${cleanToken}`, JSON.stringify(renewed), this.SESSION_TTL_SECONDS);
+    else this._localSessions[cleanToken] = renewed;
+
+    return { ...current, expiresAt: renewed.expiresAt };
   },
 
   login(userId, password) {

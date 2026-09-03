@@ -11,9 +11,9 @@
     users: [],
     validatedImportData: null,
     currentUser: null,
-    activeQueueId: null,
     selectedCertIds: [],
-    renderedCertIds: []
+    renderedCertIds: [],
+    bulkCancelRequested: false
   };
 
   const AUTH_TOKEN_KEY = 'certiflowAuthToken';
@@ -1129,7 +1129,12 @@
     const label = document.getElementById('certBulkCount');
     const selectAll = document.getElementById('certSelectAll');
 
-    if (label) label.textContent = `เลือกไว้ ${selected.length} รายการ`;
+    if (label) {
+      const roundNote = selected.length > BULK_ROUND_SIZE
+        ? ` — เกิน ${BULK_ROUND_SIZE} รายการต่อรอบ ระบบจะแบ่งทำให้อัตโนมัติ ${Math.ceil(selected.length / BULK_ROUND_SIZE)} รอบ`
+        : '';
+      label.textContent = `เลือกไว้ ${selected.length} รายการ${roundNote}`;
+    }
     if (bar) bar.classList.toggle('hidden', selected.length === 0);
     if (selectAll) {
       const selectedOnScreen = rendered.filter(id => selected.indexOf(id) !== -1).length;
@@ -1151,15 +1156,94 @@
     return { eligible, skipped };
   }
 
-  function reportBulkResult(actionLabel, result) {
-    const failed = (result.results || []).filter(item => !item.success);
-    if (failed.length) {
-      console.log(`${actionLabel} failures:`, failed);
-      showAlert(`${actionLabel}สำเร็จ ${result.successCount} รายการ, ล้มเหลว ${result.failCount} รายการ (เช่น ${failed[0].certificateId}: ${failed[0].error})`, true);
-    } else {
-      showAlert(`${actionLabel}สำเร็จ ${result.successCount} รายการ`);
-    }
+  /* Server-side cap per bulk call — keep in sync with CertificateService.MAX_BULK_PER_ROUND.
+     Larger selections are sent as consecutive rounds of this size so no single Apps Script
+     call approaches the 6-minute execution limit. */
+  const BULK_ROUND_SIZE = 25;
+
+  function setBulkProgressText(text) {
+    const textEl = document.getElementById('certBulkProgressText');
+    if (textEl) textEl.textContent = text;
+  }
+
+  function showBulkProgress(show) {
+    const box = document.getElementById('certBulkProgress');
+    const cancelBtn = document.getElementById('btnCancelBulkRun');
+    if (box) box.classList.toggle('hidden', !show);
+    if (cancelBtn) cancelBtn.classList.toggle('hidden', !show);
+  }
+
+  function cancelBulkRun() {
+    CertiFlowState.bulkCancelRequested = true;
+    setBulkProgressText('จะหยุดหลังจบรอบปัจจุบัน...');
+  }
+
+  /**
+   * Runs a bulk action over any number of ids by splitting it into rounds of
+   * BULK_ROUND_SIZE and calling the API once per round, updating the progress bar.
+   * Stops early on a hard error (e.g. session expired) and keeps what already succeeded.
+   */
+  function runBulkInRounds(action, ids, extraPayload, actionLabel) {
+    CertiFlowState.bulkCancelRequested = false;
+    const rounds = [];
+    for (let i = 0; i < ids.length; i += BULK_ROUND_SIZE) rounds.push(ids.slice(i, i + BULK_ROUND_SIZE));
+
+    const totals = { successCount: 0, failCount: 0, failures: [], processed: 0, stoppedError: '' };
+    showBulkProgress(true);
+    setBulkProgressText(`${actionLabel}: กำลังเริ่ม ${ids.length} รายการ (รอบละ ${BULK_ROUND_SIZE})`);
+
+    const runRound = (index) => {
+      if (index >= rounds.length || CertiFlowState.bulkCancelRequested) return Promise.resolve();
+      const chunk = rounds[index];
+      setBulkProgressText(`${actionLabel}: รอบที่ ${index + 1}/${rounds.length} — เสร็จแล้ว ${totals.processed}/${ids.length} รายการ`);
+
+      return callApi(action, { ...(extraPayload || {}), certificateIds: chunk })
+        .then((result) => {
+          totals.successCount += result.successCount || 0;
+          totals.failCount += result.failCount || 0;
+          totals.processed += result.total || chunk.length;
+          (result.results || []).filter(item => !item.success).forEach(item => totals.failures.push(item));
+          return runRound(index + 1);
+        })
+        .catch((err) => {
+          // A failed round stops the run; earlier rounds are already saved.
+          totals.stoppedError = err.message;
+        });
+    };
+
+    return runRound(0).then(() => {
+      showBulkProgress(false);
+      reportBulkResult(actionLabel, totals, ids.length);
+    });
+  }
+
+  function reportBulkResult(actionLabel, totals, requestedCount) {
+    if (totals.failures.length) console.log(`${actionLabel} failures:`, totals.failures);
+
+    const remaining = requestedCount - totals.processed;
+    let message = `${actionLabel}สำเร็จ ${totals.successCount} รายการ`;
+    if (totals.failCount) message += `, ล้มเหลว ${totals.failCount} รายการ (เช่น ${totals.failures[0].certificateId}: ${totals.failures[0].error})`;
+    if (totals.stoppedError) message += ` — หยุดกลางคัน เหลืออีก ${remaining} รายการที่ยังไม่ได้ทำ (${totals.stoppedError}) กรุณาเข้าสู่ระบบใหม่หรือลองอีกครั้งกับรายการที่เหลือ`;
+    else if (CertiFlowState.bulkCancelRequested && remaining > 0) message += ` — หยุดตามคำสั่ง เหลืออีก ${remaining} รายการ`;
+
+    showAlert(message, !!(totals.failCount || totals.stoppedError));
     loadCertificatesList();
+  }
+
+  function handleBulkIssueCerts() {
+    const { eligible, skipped } = partitionSelectedCerts(['DRAFT', 'PENDING']);
+    if (!eligible.length) {
+      return showAlert('ไม่มีรายการที่ออกเลขได้ในสิ่งที่เลือก (ออกเลขได้เฉพาะ DRAFT/PENDING)', true);
+    }
+
+    const skipNote = skipped.length ? ` — ข้าม ${skipped.length} รายการที่ออกเลขไปแล้วหรือถูกยกเลิก` : '';
+    const roundNote = eligible.length > BULK_ROUND_SIZE
+      ? ` ระบบจะแบ่งทำเป็น ${Math.ceil(eligible.length / BULK_ROUND_SIZE)} รอบ รอบละไม่เกิน ${BULK_ROUND_SIZE} รายการ (ห้ามปิดหน้านี้ระหว่างทำงาน)`
+      : '';
+    showConfirm(`ออกเลขเกียรติบัตร ${eligible.length} รายการหรือไม่?${roundNote}${skipNote}`).then((ok) => {
+      if (!ok) return;
+      runBulkInRounds('issueCertificates', eligible, {}, 'ออกเลขเกียรติบัตร');
+    });
   }
 
   function openBulkRevokeModal() {
@@ -1189,12 +1273,8 @@
     const { eligible } = partitionSelectedCerts(['ISSUED']);
     if (!eligible.length) return showAlert('ไม่มีรายการที่ยกเลิกได้', true);
 
-    callApi('revokeCertificates', { certificateIds: eligible, reason })
-      .then((result) => {
-        closeBulkRevokeModal();
-        reportBulkResult('ยกเลิกเกียรติบัตร', result);
-      })
-      .catch((err) => showAlert(`ยกเลิกแบบชุดล้มเหลว: ${err.message}`, true));
+    closeBulkRevokeModal();
+    runBulkInRounds('revokeCertificates', eligible, { reason }, 'ยกเลิกเกียรติบัตร');
   }
 
   function handleBulkDeleteCerts() {
@@ -1207,11 +1287,10 @@
     }
 
     const skipNote = skipped.length ? ` — ข้าม ${skipped.length} รายการที่ยังเป็น ISSUED: ${skipped.join(', ')}` : '';
-    showConfirm(`ลบเกียรติบัตร ${eligible.length} รายการถาวรหรือไม่? กู้คืนไม่ได้${skipNote}`).then((ok) => {
+    const roundNote = eligible.length > BULK_ROUND_SIZE ? ` ระบบจะแบ่งทำเป็นรอบละไม่เกิน ${BULK_ROUND_SIZE} รายการ` : '';
+    showConfirm(`ลบเกียรติบัตร ${eligible.length} รายการถาวรหรือไม่? กู้คืนไม่ได้${roundNote}${skipNote}`).then((ok) => {
       if (!ok) return;
-      callApi('deleteCertificates', { certificateIds: eligible })
-        .then((result) => reportBulkResult('ลบเกียรติบัตร', result))
-        .catch((err) => showAlert(`ลบแบบชุดล้มเหลว: ${err.message}`, true));
+      runBulkInRounds('deleteCertificates', eligible, {}, 'ลบเกียรติบัตร');
     });
   }
 
@@ -1267,59 +1346,6 @@
         loadCertificatesList();
       })
       .catch((err) => showAlert(`ออกเลขไม่สำเร็จ: ${err.message}`, true));
-  }
-
-  function startAssignNumberQueue() {
-    const activityId = document.getElementById('certActivitySelect').value;
-    if (!activityId) return showAlert('กรุณาเลือกกิจกรรมก่อนออกเลขแบบชุด', true);
-    if (!CertiFlowState.certificates.length) return showAlert('ไม่พบรายการสำหรับประมวลผล', true);
-    callApi('assignNumbers', { activityId, startRow: 1 })
-      .then(job => processGenerationQueue(job.queueId))
-      .catch(err => showAlert(`สร้างคิวไม่สำเร็จ: ${err.message}`, true));
-  }
-
-  function setQueueStatusText(text) {
-    const textEl = document.getElementById('generationQueueStatusText');
-    if (textEl) textEl.textContent = text;
-  }
-
-  function processGenerationQueue(queueId) {
-    CertiFlowState.activeQueueId = queueId;
-    const box = document.getElementById('generationQueueStatus');
-    const cancelBtn = document.getElementById('btnCancelAssignQueue');
-    if (box) box.classList.remove('hidden');
-    if (cancelBtn) cancelBtn.classList.remove('hidden');
-    setQueueStatusText('กำลังประมวลผลคิว...');
-
-    callApi('processGenerationQueue', { queueId })
-      .then(job => {
-        if (!job) throw new Error('ไม่พบคิว');
-        setQueueStatusText(`ความคืบหน้า ${job.progressPercent || 0}% — สำเร็จ ${job.successCount || 0}, ล้มเหลว ${job.failCount || 0}${job.lastError ? ` (${job.lastError})` : ''}`);
-        if (job.status === 'DONE' || job.status === 'CANCELLED') {
-          CertiFlowState.activeQueueId = null;
-          if (cancelBtn) cancelBtn.classList.add('hidden');
-          if (job.status === 'CANCELLED') setQueueStatusText(`ยกเลิกคิวแล้ว — สำเร็จ ${job.successCount || 0}, ล้มเหลว ${job.failCount || 0}`);
-          loadCertificatesList();
-          return;
-        }
-        window.setTimeout(() => processGenerationQueue(queueId), 500);
-      })
-      .catch(err => {
-        CertiFlowState.activeQueueId = null;
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-        setQueueStatusText(`คิวล้มเหลว: ${err.message}`);
-      });
-  }
-
-  function cancelAssignNumberQueue() {
-    const queueId = CertiFlowState.activeQueueId;
-    if (!queueId) return;
-    const cancelBtn = document.getElementById('btnCancelAssignQueue');
-    if (cancelBtn) cancelBtn.disabled = true;
-    callApi('cancelGenerationQueue', { queueId })
-      .then(() => setQueueStatusText('กำลังยกเลิกคิว...'))
-      .catch(err => showAlert(`ยกเลิกคิวไม่สำเร็จ: ${err.message}`, true))
-      .finally(() => { if (cancelBtn) cancelBtn.disabled = false; });
   }
 
   function handleDeleteCert(certificateId) {

@@ -3,6 +3,14 @@
  */
 const CertificateService = {
   /**
+   * Hard ceiling for one bulk round. Issuing a number is the heaviest per-row action
+   * (lock + number allocation + row write + audit row), so the cap keeps a single
+   * Apps Script call well inside the 6-minute execution limit. The UI splits larger
+   * selections into consecutive rounds of this size.
+   */
+  MAX_BULK_PER_ROUND: 25,
+
+  /**
    * Get all certificates
    * @return {Array<Object>}
    */
@@ -122,14 +130,15 @@ const CertificateService = {
   /**
    * Issue certificate (assign certNo if missing, transition status to ISSUED)
    * @param {string} certificateId
+   * @param {Array<Object>} [cache] Pre-read registry rows for bulk callers
    * @return {Object}
    */
-  issueCertificate(certificateId) {
+  issueCertificate(certificateId, cache) {
     if (typeof AuthService !== 'undefined') {
       AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
     }
 
-    const cert = this.getById(certificateId);
+    const cert = this.getById(certificateId, cache);
     if (!cert) {
       throw new Error(`Certificate '${certificateId}' not found.`);
     }
@@ -152,7 +161,7 @@ const CertificateService = {
     let runningNumber = cert.runningNumber;
 
     if (certNo) {
-      const collision = this.getAllCertificates().find(item =>
+      const collision = (cache || this.getAllCertificates()).find(item =>
         item.certificateId !== cert.certificateId &&
         String(item.certificateNo || '').trim() === String(certNo).trim()
       );
@@ -246,6 +255,18 @@ const CertificateService = {
   },
 
   /**
+   * Bulk issue: assigns numbers to every given certificate under one shared registry read.
+   * @param {Array<string>} certificateIds
+   * @return {{total: number, successCount: number, failCount: number, results: Array<Object>}}
+   */
+  issueCertificates(certificateIds) {
+    if (typeof AuthService !== 'undefined') {
+      AuthService.requireRole([Config.ROLES.ADMIN, Config.ROLES.STAFF]);
+    }
+    return this.runBulk(certificateIds, (id, cache) => this.issueCertificate(id, cache));
+  },
+
+  /**
    * Bulk revoke: revokes every given certificate under one shared registry read.
    * Never aborts the whole batch on a single bad row — each failure is reported per item.
    * @param {Array<string>} certificateIds
@@ -286,6 +307,9 @@ const CertificateService = {
       .filter(id => id !== '');
     if (!ids.length) {
       throw new Error('กรุณาเลือกเกียรติบัตรอย่างน้อย 1 รายการ');
+    }
+    if (ids.length > this.MAX_BULK_PER_ROUND) {
+      throw new Error(`ดำเนินการได้สูงสุด ${this.MAX_BULK_PER_ROUND} รายการต่อรอบ (ส่งมา ${ids.length} รายการ) กรุณาแบ่งเป็นหลายรอบ`);
     }
 
     const cache = this.getAllCertificates();

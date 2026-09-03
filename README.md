@@ -467,6 +467,7 @@ createGenerationQueue
 getGenerationProgress
 updateCertificate
 issueCertificate
+issueCertificates
 revokeCertificate
 revokeCertificates
 reissueCertificate

@@ -146,7 +146,32 @@ function testBulkRevokeAndDelete() {
   console.log('Bulk revoke and delete test passed.');
 }
 
+function testBulkIssueAndRoundCap() {
+  const rows = [
+    { _rowIndex: 2, certificateId: 'CERT-ACT001-000001', activityId: 'ACT001', certificateNo: '', firstName: 'ก', lastName: 'ข', certificateStatus: Config.CERT_STATUS.DRAFT },
+    { _rowIndex: 3, certificateId: 'CERT-ACT001-000002', activityId: 'ACT001', certificateNo: '', firstName: 'ค', lastName: 'ง', certificateStatus: Config.CERT_STATUS.REVOKED }
+  ];
+  CertificateService.getAllCertificates = () => rows;
+  CertificateService.saveCertificateRow = () => {};
+
+  const result = CertificateService.issueCertificates(['CERT-ACT001-000001', 'CERT-ACT001-000002']);
+  assert.equal(result.successCount, 1, 'Only the DRAFT row can be issued');
+  assert.match(result.results[1].error, /Cannot issue certificate in status 'REVOKED'/);
+
+  // One round may never exceed the cap; the UI splits larger selections itself.
+  const tooMany = [];
+  for (let i = 0; i <= CertificateService.MAX_BULK_PER_ROUND; i++) tooMany.push(`CERT-ACT001-${i}`);
+  assert.throws(
+    () => CertificateService.issueCertificates(tooMany),
+    new RegExp(`สูงสุด ${CertificateService.MAX_BULK_PER_ROUND} รายการต่อรอบ`),
+    'Sending more than one round worth of ids must be refused'
+  );
+
+  console.log('Bulk issue and per-round cap test passed.');
+}
+
 testImportValidationAndDuplicates();
 testCertificateLifecycleAndOriginalName();
 testCertificateReissue();
 testBulkRevokeAndDelete();
+testBulkIssueAndRoundCap();

@@ -28,6 +28,7 @@ const API_ROUTES = {
     cancelGenerationQueue: ['ADMIN', 'STAFF'],
     updateCertificate: ['ADMIN', 'STAFF'],
     issueCertificate: ['ADMIN', 'STAFF'],
+    issueCertificates: ['ADMIN', 'STAFF'],
     revokeCertificate: ['ADMIN', 'STAFF'],
     revokeCertificates: ['ADMIN', 'STAFF'],
     reissueCertificate: ['ADMIN', 'STAFF'],
@@ -280,6 +281,8 @@ function executeManagementAction(action, payload, userContext) {
       return CertificateService.updateCertificate(payload.certificateId, payload.updates || payload);
     case 'issueCertificate':
       return CertificateService.issueCertificate(payload.certificateId);
+    case 'issueCertificates':
+      return CertificateService.issueCertificates(payload.certificateIds);
     case 'revokeCertificate':
       return CertificateService.revokeCertificate(payload.certificateId, payload.reason);
     case 'revokeCertificates':
