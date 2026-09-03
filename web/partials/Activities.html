@@ -126,9 +126,15 @@
       </div>
 
       <div>
-        <label class="block font-medium text-slate-700 mb-1">ด้านการอบรม (ค่าตั้งต้นของกิจกรรม)</label>
-        <input type="text" id="actTrainingType" placeholder="เช่น ด้านการอ่าน, ด้านคณิตศาสตร์, ด้านวิทยาศาสตร์" class="w-full rounded-md border p-2 border-slate-300">
-        <p class="text-xs text-slate-500 mt-1">ใช้แทนที่ <span class="font-mono bg-slate-100 px-1 rounded">{{type}}</span> ในเกียรติบัตร — ถ้าไฟล์นำเข้ามีคอลัมน์ "ด้านการอบรม" ระบบจะใช้ค่าของแต่ละคนก่อน แล้วค่อยใช้ค่านี้เป็นค่าตั้งต้นเมื่อเว้นว่าง</p>
+        <label class="block font-medium text-slate-700 mb-1">ด้านการอบรม</label>
+        <select id="actHasTrainingType" onchange="toggleTrainingTypeInput()" class="w-full rounded-md border p-2 border-slate-300 bg-white">
+          <option value="NONE">ไม่มี (เกียรติบัตรไม่ระบุด้านการอบรม)</option>
+          <option value="HAS">มี — ระบุด้านการอบรม</option>
+        </select>
+        <div id="actTrainingTypeWrap" class="hidden mt-2">
+          <input type="text" id="actTrainingType" placeholder="เช่น ด้านการอ่าน, ด้านคณิตศาสตร์, ด้านวิทยาศาสตร์" class="w-full rounded-md border p-2 border-slate-300">
+          <p class="text-xs text-slate-500 mt-1">ใช้แทนที่ <span class="font-mono bg-slate-100 px-1 rounded">{{type}}</span> ในเกียรติบัตร — ถ้าไฟล์นำเข้ามีคอลัมน์ "ด้านการอบรม" ระบบจะใช้ค่าของแต่ละคนก่อน แล้วค่อยใช้ค่านี้เป็นค่าตั้งต้นเมื่อเว้นว่าง</p>
+        </div>
       </div>
 
       <div>

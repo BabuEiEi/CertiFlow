@@ -675,12 +675,25 @@
       document.getElementById('actSeparator').value = activityObj.separator || '/';
       document.getElementById('actTemplateId').value = activityObj.templateId || '';
       document.getElementById('actTrainingType').value = activityObj.trainingType || '';
+      document.getElementById('actHasTrainingType').value = activityObj.trainingType ? 'HAS' : 'NONE';
       document.getElementById('actStatus').value = activityObj.status || 'DRAFT';
     } else {
       if (title) title.textContent = 'สร้างกิจกรรมใหม่';
       document.getElementById('activityForm').reset();
       document.getElementById('actId').value = '';
     }
+    toggleTrainingTypeInput();
+  }
+
+  /** The training-type text box only exists while the activity declares it has one. */
+  function toggleTrainingTypeInput() {
+    const select = document.getElementById('actHasTrainingType');
+    const wrap = document.getElementById('actTrainingTypeWrap');
+    const input = document.getElementById('actTrainingType');
+    if (!select || !wrap || !input) return;
+    const hasType = select.value === 'HAS';
+    wrap.classList.toggle('hidden', !hasType);
+    if (!hasType) input.value = '';
   }
 
   function closeActivityModal() {
@@ -775,7 +788,9 @@
       digitLength: document.getElementById('actDigitLength').value,
       separator: document.getElementById('actSeparator').value,
       templateId: document.getElementById('actTemplateId').value.trim(),
-      trainingType: document.getElementById('actTrainingType').value,
+      trainingType: document.getElementById('actHasTrainingType').value === 'HAS'
+        ? document.getElementById('actTrainingType').value
+        : '',
       status: document.getElementById('actStatus').value
     };
 
@@ -916,15 +931,36 @@
 
   function downloadImportTemplate() {
     if (typeof XLSX === 'undefined') return showAlert('ตัวสร้างไฟล์ XLSX โหลดไม่สำเร็จ', true);
-    const header = ['คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'ด้านการอบรม', 'สถานะ'];
+    // The heading says the column is optional; header matching tolerates the note
+    // because unmatched exact aliases fall back to a substring match.
+    const header = ['คำนำหน้า', 'ชื่อ', 'นามสกุล', 'โรงเรียน/หน่วยงาน', 'ด้านการอบรม (เว้นว่างได้)', 'สถานะ'];
     const sample = [
       ['นาย', 'ภัทรพล', 'แก้วเสนา', 'โรงเรียนสาธิต', 'ด้านการอ่าน', 'ผ่านการอบรม'],
-      ['นางสาว', 'สมหญิง', 'รักดี', 'โรงเรียนอนุบาล', 'ด้านคณิตศาสตร์', 'เข้าร่วม']
+      ['นางสาว', 'สมหญิง', 'รักดี', 'โรงเรียนอนุบาล', '', 'เข้าร่วม']
     ];
     const sheet = XLSX.utils.aoa_to_sheet([header, ...sample]);
-    sheet['!cols'] = header.map(() => ({ wch: 20 }));
+    sheet['!cols'] = header.map(() => ({ wch: 22 }));
+
+    // Only the first sheet is read on import, so the notes sheet is safe to ship along.
+    const notes = XLSX.utils.aoa_to_sheet([
+      ['คำแนะนำการกรอกไฟล์นำเข้ารายชื่อ CertiFlow'],
+      [''],
+      ['คอลัมน์', 'บังคับกรอก?', 'คำอธิบาย'],
+      ['คำนำหน้า', 'ไม่บังคับ', 'เช่น นาย / นาง / นางสาว / ดร.'],
+      ['ชื่อ', 'บังคับ', 'ชื่อจริงของผู้รับเกียรติบัตร'],
+      ['นามสกุล', 'บังคับ', 'นามสกุลของผู้รับเกียรติบัตร'],
+      ['โรงเรียน/หน่วยงาน', 'ไม่บังคับ', 'พิมพ์ลงเกียรติบัตรที่ตำแหน่ง {{office}}'],
+      ['ด้านการอบรม (เว้นว่างได้)', 'ไม่บังคับ', 'พิมพ์ลงเกียรติบัตรที่ตำแหน่ง {{type}} — เว้นว่างไว้ได้ ระบบจะใช้ "ด้านการอบรม" ที่ตั้งไว้ในหน้ากิจกรรมแทน และถ้ากิจกรรมเลือก "ไม่มี" ก็ปล่อยว่างทั้งคอลัมน์ได้เลย'],
+      ['สถานะ', 'ไม่บังคับ', 'ต้องเป็น "ผ่านการอบรม" หรือ "เข้าร่วม" เท่านั้น — เว้นว่างไว้ระบบจะใช้ "ผ่านการอบรม"'],
+      [''],
+      ['ข้อควรระวัง', '', 'ห้ามลบหรือเปลี่ยนแถวหัวคอลัมน์ในชีต Participants และกรอกข้อมูลต่อจากแถวตัวอย่างได้เลย (ลบแถวตัวอย่างออกก่อนนำเข้าจริง)'],
+      ['', '', 'นำเข้าได้สูงสุด 5,000 แถวต่อครั้ง']
+    ]);
+    notes['!cols'] = [{ wch: 26 }, { wch: 14 }, { wch: 90 }];
+
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, sheet, 'Participants');
+    XLSX.utils.book_append_sheet(workbook, notes, 'คำแนะนำ');
     XLSX.writeFile(workbook, 'CertiFlow_Import_Template.xlsx');
   }
 
