@@ -216,9 +216,116 @@ function testBulkIssueAndRoundCap() {
   console.log('Bulk issue and per-round cap test passed.');
 }
 
+function testImportNeverReusesDeletedIds() {
+  // PAR-ACT001-000002 was deleted from the participants page: its participant row is gone
+  // for real, but the certificate row survives as DELETED and still holds that suffix.
+  const participants = [{ participantId: 'PAR-ACT001-000001', activityId: 'ACT001', firstName: 'ก', lastName: 'ก', school: 'ร.ร.A' }];
+  const certificates = [
+    { certificateId: 'CERT-ACT001-000001', activityId: 'ACT001', certificateStatus: Config.CERT_STATUS.DRAFT },
+    { certificateId: 'CERT-ACT001-000002', activityId: 'ACT001', certificateStatus: Config.CERT_STATUS.DELETED }
+  ];
+
+  const written = {};
+  global.SheetService = {
+    readRows: (sheet) => (sheet === Config.SHEETS.PARTICIPANTS ? participants : []),
+    appendRowsBatch: (sheet, matrix) => { written[sheet] = matrix; return { startRow: 2, rowCount: matrix.length }; },
+    deleteRows: () => {}
+  };
+  global.ActivityService = { getActivityById: () => ({ activityId: 'ACT001', trainingType: '' }) };
+  global.CertificateService = CertificateService;
+  const realGetAll = CertificateService.getAllCertificates;
+  CertificateService.getAllCertificates = () => certificates;
+
+  try {
+    ParticipantService.commitImport('ACT001', [{ firstName: 'ข', lastName: 'ข', school: 'ร.ร.B' }], false);
+    assert.equal(
+      written[Config.SHEETS.CERTIFICATES][0][Config.HEADERS.Certificates.indexOf('certificateId')],
+      'CERT-ACT001-000003',
+      'A suffix still held by a soft-deleted certificate must never be handed out again'
+    );
+    assert.equal(
+      written[Config.SHEETS.PARTICIPANTS][0][Config.HEADERS.Participants.indexOf('participantId')],
+      'PAR-ACT001-000003',
+      'Participant ids follow the same suffix as their certificate'
+    );
+  } finally {
+    CertificateService.getAllCertificates = realGetAll;
+    delete global.SheetService;
+    delete global.ActivityService;
+    delete global.CertificateService;
+  }
+
+  console.log('Import id suffix never reuses deleted ids test passed.');
+}
+
+function testRestoreDeletedCertificate() {
+  const deletedDraft = {
+    _rowIndex: 2,
+    certificateId: 'CERT-ACT001-000001',
+    activityId: 'ACT001',
+    participantId: 'PAR-ACT001-000001',
+    certificateNo: '',
+    prefixName: 'นาย',
+    firstName: 'ภัทรพล',
+    lastName: 'แก้วเสนา',
+    school: 'โรงเรียนสาธิต',
+    trainingType: 'ด้านการอ่าน',
+    participantStatus: 'ผ่านการอบรม',
+    certificateStatus: Config.CERT_STATUS.DELETED,
+    revokedAt: ''
+  };
+
+  let saved = null;
+  CertificateService.getAllCertificates = () => [deletedDraft];
+  CertificateService.saveCertificateRow = (cert) => { saved = cert; };
+
+  assert.throws(() => CertificateService.restoreCertificate('CERT-ACT001-000001', ''), /กรุณาระบุเหตุผลในการกู้คืน/);
+
+  // The participant row was deleted along with it, so restoring has to rebuild it.
+  const appended = {};
+  global.SheetService = {
+    readRows: () => [],
+    appendRowsBatch: (sheet, matrix) => { appended[sheet] = matrix; return { startRow: 2, rowCount: matrix.length }; },
+    deleteRows: () => {}
+  };
+  global.ParticipantService = ParticipantService;
+
+  try {
+    const restored = CertificateService.restoreCertificate('CERT-ACT001-000001', 'ลบผิดใบ');
+    assert.equal(restored.certificateStatus, Config.CERT_STATUS.DRAFT, 'A never-revoked certificate returns to DRAFT');
+    assert.equal(saved.certificateStatus, Config.CERT_STATUS.DRAFT, 'The restored status must be written back to the sheet');
+    assert.equal(restored.participantRestored, true, 'A missing participant row must be rebuilt');
+
+    const participantRow = appended[Config.SHEETS.PARTICIPANTS][0];
+    assert.equal(participantRow.length, Config.HEADERS.Participants.length, 'Rebuilt participant row width must match the header list');
+    assert.equal(participantRow[Config.HEADERS.Participants.indexOf('participantId')], 'PAR-ACT001-000001', 'Rebuilt row keeps the original participantId');
+    assert.equal(participantRow[Config.HEADERS.Participants.indexOf('trainingType')], 'ด้านการอ่าน', 'Rebuilt row carries the training type over');
+
+    // A certificate revoked before deletion goes back to REVOKED, not DRAFT, and its
+    // participant row is still present so nothing is appended a second time.
+    const deletedRevoked = { ...deletedDraft, certificateNo: 'เลขที่ 0001/2569', revokedAt: '2026-01-01T00:00:00.000Z' };
+    CertificateService.getAllCertificates = () => [deletedRevoked];
+    global.SheetService.readRows = () => [{ participantId: 'PAR-ACT001-000001', activityId: 'ACT001' }];
+    const restoredRevoked = CertificateService.restoreCertificate('CERT-ACT001-000001', 'กู้คืนใบที่ยกเลิกไว้');
+    assert.equal(restoredRevoked.certificateStatus, Config.CERT_STATUS.REVOKED, 'A revoked certificate returns to REVOKED');
+    assert.equal(restoredRevoked.certificateNo, 'เลขที่ 0001/2569', 'Restoring must keep the original certificate number');
+    assert.equal(restoredRevoked.participantRestored, false, 'An existing participant row must not be duplicated');
+
+    CertificateService.getAllCertificates = () => [{ ...deletedDraft, certificateStatus: Config.CERT_STATUS.DRAFT }];
+    assert.throws(() => CertificateService.restoreCertificate('CERT-ACT001-000001', 'ไม่ควรได้'), /เฉพาะเกียรติบัตรที่ถูกลบ \(DELETED\)/);
+  } finally {
+    delete global.SheetService;
+    delete global.ParticipantService;
+  }
+
+  console.log('Certificate restore test passed.');
+}
+
 testImportValidationAndDuplicates();
 testImportCarriesSchoolAndTrainingType();
+testImportNeverReusesDeletedIds();
 testCertificateLifecycleAndOriginalName();
 testCertificateReissue();
 testBulkRevokeAndDelete();
 testBulkIssueAndRoundCap();
+testRestoreDeletedCertificate();

@@ -36,6 +36,7 @@ const API_ROUTES = {
     reissueCertificate: ['ADMIN', 'STAFF'],
     deleteCertificate: ['ADMIN'],
     deleteCertificates: ['ADMIN'],
+    restoreCertificate: ['ADMIN'],
     getUsers: ['ADMIN'],
     manageUser: ['ADMIN'],
     getSettings: ['ADMIN'],
@@ -299,6 +300,8 @@ function executeManagementAction(action, payload, userContext) {
       return CertificateService.deleteCertificate(payload.certificateId);
     case 'deleteCertificates':
       return CertificateService.deleteCertificates(payload.certificateIds);
+    case 'restoreCertificate':
+      return CertificateService.restoreCertificate(payload.certificateId, payload.reason);
     case 'getUsers':
       if (typeof SheetService === 'undefined') return [];
       return SheetService.readRows(Config.SHEETS.USERS).map(user => ({

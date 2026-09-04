@@ -1406,6 +1406,14 @@
       .catch((err) => showAlert(`โหลดรายการเกียรติบัตรล้มเหลว: ${err.message}`, true));
   }
 
+  /** Badge colours for the registry status column. DELETED rows only appear when filtered for. */
+  function certStatusBadgeClass(status) {
+    if (status === 'ISSUED') return 'bg-navy-100 text-navy-800';
+    if (status === 'REVOKED') return 'bg-rose-100 text-rose-800';
+    if (status === 'DELETED') return 'bg-slate-700 text-white';
+    return 'bg-slate-100 text-slate-600';
+  }
+
   /** Re-renders the table body from CertiFlowState.certFullList using the current page/page size. */
   function renderCertTablePage() {
     const tbody = document.getElementById('certTableBody');
@@ -1446,11 +1454,14 @@
         <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(c.prefixName || '')}${escapeHtml(c.firstName)} ${escapeHtml(c.lastName)}</td>
         <td class="px-4 py-3 text-slate-600">${escapeHtml(c.school || '-')}</td>
         <td class="px-4 py-3 text-center">
-          <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${c.certificateStatus === 'ISSUED' ? 'bg-navy-100 text-navy-800' : (c.certificateStatus === 'REVOKED' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}">
+          <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${certStatusBadgeClass(c.certificateStatus)}">
             ${escapeHtml(c.certificateStatus)}
           </span>
         </td>
         <td class="px-4 py-3 text-right space-x-1.5">
+          ${c.certificateStatus === 'DELETED' ? (isAdmin
+            ? `<button onclick="openRestoreCertModal('${c.certificateId}')" class="px-2.5 py-1 bg-navy-800 hover:bg-navy-900 text-white rounded text-xs font-medium">กู้คืน</button>`
+            : '<span class="text-xs text-slate-400">เฉพาะ ADMIN กู้คืนได้</span>') : `
           ${['DRAFT', 'PENDING'].includes(c.certificateStatus) ? `<button onclick="handleIssueCert('${c.certificateId}')" class="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded text-xs font-medium">ออกเลข</button>` : ''}
           <button onclick="openEditCertModal('${c.certificateId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-xs font-medium">แก้ไข</button>
           ${c.certificateStatus === 'ISSUED' ? `<button onclick="previewCertBlob('${c.certificateId}')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">ตัวอย่าง</button><button onclick="downloadCertBlob('${c.certificateId}', 'pdf')" class="px-2 py-1 bg-navy-50 hover:bg-navy-100 text-navy-700 rounded text-xs font-medium">PDF</button><button onclick="openRevokeCertModal('${c.certificateId}')" class="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded text-xs font-medium">ยกเลิก</button>` : ''}
@@ -1458,6 +1469,7 @@
           ${isAdmin ? (['DRAFT', 'PENDING', 'REVOKED'].includes(c.certificateStatus)
             ? `<button onclick="handleDeleteCert('${c.certificateId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>`
             : `<button disabled title="ต้องยกเลิก (REVOKED) ก่อน จึงจะลบถาวรได้" class="px-2 py-1 bg-slate-100 text-slate-400 rounded text-xs font-medium cursor-not-allowed">ลบ</button>`) : ''}
+          `}
         </td>
       </tr>
     `).join('');
@@ -1902,6 +1914,40 @@
         loadCertificatesList();
       })
       .catch((err) => showAlert(`ออกใหม่ล้มเหลว: ${err.message}`, true));
+  }
+
+  function openRestoreCertModal(certificateId) {
+    document.getElementById('restoreCertId').value = certificateId;
+    document.getElementById('lblRestoreCertId').textContent = certificateId;
+    document.getElementById('restoreReasonText').value = '';
+
+    // The server derives the same thing from revokedAt; showing it up front keeps the
+    // confirmation honest about where the certificate lands.
+    const cert = (CertiFlowState.certificates || []).find(item => item.certificateId === certificateId);
+    const targetStatus = cert && String(cert.revokedAt || '').trim() ? 'REVOKED' : 'DRAFT';
+    document.getElementById('lblRestoreTargetStatus').textContent = targetStatus;
+
+    const modal = document.getElementById('restoreCertModal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeRestoreCertModal() {
+    const modal = document.getElementById('restoreCertModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function handleConfirmRestore(e) {
+    e.preventDefault();
+    const certificateId = document.getElementById('restoreCertId').value;
+    const reason = document.getElementById('restoreReasonText').value.trim();
+
+    callApi('restoreCertificate', { certificateId, reason })
+      .then((restored) => {
+        showAlert(`กู้คืน ${certificateId} เรียบร้อย สถานะปัจจุบัน ${restored.certificateStatus} คงเลขที่เดิม ${restored.certificateNo || 'ยังไม่ออกเลข'} ไว้${restored.participantRestored ? ' และสร้างแถวผู้เข้าร่วมคืนให้แล้ว' : ''}`);
+        closeRestoreCertModal();
+        loadCertificatesList();
+      })
+      .catch((err) => showAlert(`กู้คืนล้มเหลว: ${err.message}`, true));
   }
 
   /* ==========================================================================

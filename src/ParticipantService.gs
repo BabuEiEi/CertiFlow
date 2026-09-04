@@ -20,6 +20,18 @@ const ParticipantService = {
   },
 
   /**
+   * Highest 6-digit suffix across a list of PAR-/CERT- style ids, or 0 when none parse.
+   * @param {Array<string>} ids
+   * @return {number}
+   */
+  maxIdSuffix_(ids) {
+    return (ids || []).reduce((max, id) => {
+      const match = String(id || '').match(/-(\d{6})$/);
+      return match ? Math.max(max, parseInt(match[1], 10)) : max;
+    }, 0);
+  },
+
+  /**
    * Get all participants for an activity
    * @param {string} activityId
    * @return {Array<Object>}
@@ -158,11 +170,19 @@ const ParticipantService = {
       const batchId = `BATCH-${Date.now()}-${uuid}`;
       const now = new Date().toISOString();
       const actorEmail = typeof AuthService !== 'undefined' ? AuthService.getCurrentUserEmail() : 'SYSTEM';
-      const existingParticipants = this.getParticipants(cleanActivityId);
-      let currentCount = existingParticipants.reduce((max, participant) => {
-        const match = String(participant.participantId || '').match(/-(\d{6})$/);
-        return match ? Math.max(max, parseInt(match[1], 10)) : max;
-      }, 0);
+      // The id suffix must never go backwards. Participant rows are deleted for real, so
+      // counting them alone lets a later import hand out a suffix that a soft-deleted
+      // certificate still holds — two rows would end up sharing one certificateId, and
+      // getById would resolve the older DELETED one. Certificate rows are only ever
+      // status-flagged, so they keep every suffix ever issued reserved.
+      let currentCount = Math.max(
+        this.maxIdSuffix_(this.getParticipants(cleanActivityId).map(p => p.participantId)),
+        this.maxIdSuffix_(typeof CertificateService !== 'undefined'
+          ? CertificateService.getAllCertificates()
+            .filter(c => String(c.activityId).trim() === cleanActivityId)
+            .map(c => c.certificateId)
+          : [])
+      );
 
       // Rows that leave "ด้านการอบรม" blank inherit the activity-level default.
       const activity = typeof ActivityService !== 'undefined' ? ActivityService.getActivityById(cleanActivityId) : null;
@@ -325,6 +345,44 @@ const ParticipantService = {
     }
 
     return { participantId: cleanId, deleted: true, certificateId: certificate ? certificate.certificateId : null };
+  },
+
+  /**
+   * Rebuild the participant row for a certificate being restored, when deleting from the
+   * participants page removed it for real. Every field the sheet needs still lives on the
+   * certificate row, so the record comes back under its original participantId.
+   * No-op when the row is still there, which is the case for a certificate deleted from
+   * the registry page. Callers must have authorized the restore themselves.
+   * @param {Object} cert Restored certificate row
+   * @return {boolean} true when a row was written back
+   */
+  restoreParticipantFromCertificate_(cert) {
+    if (typeof SheetService === 'undefined' || !cert || !cert.participantId) return false;
+    const cleanId = String(cert.participantId).trim();
+    const exists = this.getParticipants('').some(item => String(item.participantId).trim() === cleanId);
+    if (exists) return false;
+
+    const now = new Date().toISOString();
+    const actorEmail = typeof AuthService !== 'undefined' ? AuthService.getCurrentUserEmail() : 'SYSTEM';
+    const values = {
+      participantId: cleanId,
+      activityId: cert.activityId,
+      prefixName: cert.prefixName,
+      firstName: cert.firstName,
+      lastName: cert.lastName,
+      school: cert.school,
+      participantStatus: cert.participantStatus,
+      importBatchId: '',
+      sourceRow: '',
+      createdAt: cert.createdAt || now,
+      createdBy: cert.createdBy || actorEmail,
+      updatedAt: now,
+      updatedBy: actorEmail,
+      trainingType: cert.trainingType
+    };
+    const row = Config.HEADERS.Participants.map(key => values[key] !== undefined ? values[key] : '');
+    SheetService.appendRowsBatch(Config.SHEETS.PARTICIPANTS, [row]);
+    return true;
   },
 
   /**

@@ -32,6 +32,7 @@
         <option value="DRAFT">DRAFT (ร่าง)</option>
         <option value="ISSUED">ISSUED (ออกเลขแล้ว)</option>
         <option value="REVOKED">REVOKED (ถูกยกเลิก)</option>
+        <option value="DELETED">DELETED (ถูกลบ — กู้คืนได้)</option>
       </select>
     </div>
     <div>
@@ -227,6 +228,32 @@
       <div class="flex justify-end space-x-3 pt-3 border-t">
         <button type="button" onclick="closeReissueCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
         <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md font-medium">ยืนยันออกใหม่</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Restore (Put Back) Certificate Modal -->
+<div id="restoreCertModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-navy-800">กู้คืนเกียรติบัตร (Put Back)</h3>
+      <button onclick="closeRestoreCertModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <form id="restoreCertForm" onsubmit="handleConfirmRestore(event)" class="space-y-4 text-sm">
+      <input type="hidden" id="restoreCertId">
+
+      <p class="text-slate-600 text-xs">คุณกำลังกู้คืนเกียรติบัตร <strong id="lblRestoreCertId" class="font-mono text-slate-900"></strong> กลับเข้าทะเบียน ระบบจะ<strong class="text-navy-800">คงเลขที่เกียรติบัตรและข้อมูลเดิมไว้ทั้งหมด</strong> และคืนสถานะเป็น <strong id="lblRestoreTargetStatus" class="font-mono"></strong> (ถ้าแถวผู้เข้าร่วมถูกลบไปแล้ว ระบบจะสร้างคืนให้อัตโนมัติ)</p>
+
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">ระบุเหตุผลในการกู้คืน *</label>
+        <textarea id="restoreReasonText" required rows="3" placeholder="เช่น ลบผิดใบ, ผู้เข้าร่วมยืนยันสิทธิ์แล้ว..." class="w-full rounded-md border p-2 border-slate-300 text-xs"></textarea>
+      </div>
+
+      <div class="flex justify-end space-x-3 pt-3 border-t">
+        <button type="button" onclick="closeRestoreCertModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-navy-800 hover:bg-navy-900 text-white rounded-md font-medium">ยืนยันกู้คืน</button>
       </div>
     </form>
   </div>

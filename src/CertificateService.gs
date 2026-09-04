@@ -447,6 +447,75 @@ const CertificateService = {
   },
 
   /**
+   * Put a soft-deleted certificate back into the registry (ADMIN only).
+   *
+   * Deleting only flips the status, so the row — with its certificateId, certificateNo
+   * and running number — has been sitting in the sheet the whole time and comes back
+   * exactly as it was. The number cannot have been handed to anyone else meanwhile:
+   * NumberService allocates against every registry row, DELETED ones included.
+   *
+   * The pre-delete status is read back off the row itself rather than the audit log:
+   * a revoked certificate still carries revokedAt, and ISSUED can never be deleted, so
+   * everything else returns to DRAFT.
+   * @param {string} certificateId
+   * @param {string} reason Required justification, recorded in the audit log.
+   * @return {Object} Restored certificate, plus participantRestored when its participant row was rebuilt.
+   */
+  restoreCertificate(certificateId, reason) {
+    if (typeof AuthService !== 'undefined') {
+      AuthService.requireRole([Config.ROLES.ADMIN]);
+    }
+
+    if (!reason || String(reason).trim() === '') {
+      throw new Error('กรุณาระบุเหตุผลในการกู้คืน');
+    }
+
+    const cert = this.getById(certificateId);
+    if (!cert) {
+      throw new Error(`Certificate '${certificateId}' not found.`);
+    }
+
+    if (cert.certificateStatus !== Config.CERT_STATUS.DELETED) {
+      throw new Error(`กู้คืนได้เฉพาะเกียรติบัตรที่ถูกลบ (DELETED) (สถานะปัจจุบัน: ${cert.certificateStatus})`);
+    }
+
+    const beforeObj = JSON.parse(JSON.stringify(cert));
+    const now = new Date().toISOString();
+    const actorEmail = typeof AuthService !== 'undefined' ? AuthService.getCurrentUserEmail() : 'SYSTEM';
+    const restoredStatus = String(cert.revokedAt || '').trim()
+      ? Config.CERT_STATUS.REVOKED
+      : Config.CERT_STATUS.DRAFT;
+
+    const restoredCert = {
+      ...cert,
+      certificateStatus: restoredStatus,
+      updatedAt: now,
+      updatedBy: actorEmail
+    };
+
+    this.saveCertificateRow(restoredCert);
+
+    // Deleting from the participants page removes that row for real, so a certificate
+    // restored from there would otherwise come back without its participant.
+    const participantRestored = typeof ParticipantService !== 'undefined'
+      ? ParticipantService.restoreParticipantFromCertificate_(restoredCert)
+      : false;
+
+    if (typeof AuditService !== 'undefined') {
+      AuditService.log(
+        AuditService.ACTIONS.RESTORE_CERTIFICATE,
+        'Certificate',
+        certificateId,
+        beforeObj,
+        restoredCert,
+        `Restored certificate ${certificateId} to ${restoredStatus} keeping certNo ${cert.certificateNo || '-'}${participantRestored ? ' (participant row rebuilt)' : ''}. Reason: ${reason}`
+      );
+    }
+
+    return { ...restoredCert, participantRestored };
+  },
+
+  /**
    * Internal helper to persist updated certificate object to sheet row
    * @param {Object} certObj
    */

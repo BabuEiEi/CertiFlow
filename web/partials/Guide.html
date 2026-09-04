@@ -39,6 +39,7 @@
           <tr><td class="px-3 py-2">นำเข้ารายชื่อ / แก้ไข / ลบผู้เข้าร่วม</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
           <tr><td class="px-3 py-2">ออกเลข / แก้ไข / revoke / reissue เกียรติบัตร</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-emerald-700">✓</td></tr>
           <tr><td class="px-3 py-2">ลบเกียรติบัตรถาวรจากทะเบียน (DRAFT/PENDING/REVOKED)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
+          <tr><td class="px-3 py-2">กู้คืนเกียรติบัตรที่ถูกลบ (Put Back)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
           <tr><td class="px-3 py-2">ตั้งค่าระบบ (Settings)</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕ (มองไม่เห็นเมนู)</td></tr>
           <tr><td class="px-3 py-2">จัดการผู้ใช้งาน</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
           <tr><td class="px-3 py-2">Audit Logs / รายงานปัญหาจากสาธารณะ</td><td class="px-3 py-2 text-center text-emerald-700">✓</td><td class="px-3 py-2 text-center text-rose-600">✕</td></tr>
@@ -140,7 +141,9 @@
     <div class="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs font-mono text-slate-700 overflow-x-auto whitespace-pre">
 DRAFT/PENDING --ออกเลข--> ISSUED --ยกเลิก (ระบุเหตุผล)--> REVOKED --ออกใหม่ (คงเลขเดิม)--> DRAFT
      |
-     +--ลบ (เฉพาะ ADMIN, เฉพาะ DRAFT/PENDING/REVOKED)--> DELETED</div>
+     +--ลบ (เฉพาะ ADMIN, เฉพาะ DRAFT/PENDING/REVOKED)--> DELETED
+                                                            |
+                                +--กู้คืน (เฉพาะ ADMIN, คงเลขเดิม)--+--> DRAFT หรือ REVOKED (ตามสถานะก่อนลบ)</div>
 
     <ul class="list-disc list-inside text-sm text-slate-700 space-y-1.5">
       <li><strong>ออกเลข</strong>: กดทีละใบที่ปุ่ม "ออกเลข" ในแถวนั้น หรือใช้การเลือกหลายรายการแล้วกด "ออกเลขที่เลือก"</li>
@@ -148,7 +151,8 @@ DRAFT/PENDING --ออกเลข--> ISSUED --ยกเลิก (ระบุ�
       <li><strong>ทำได้สูงสุด 25 รายการต่อรอบ</strong>: ถ้าเลือกมากกว่านั้น ระบบจะแบ่งส่งเป็นหลายรอบให้เองโดยอัตโนมัติ (รอบละ 25) พร้อมแถบความคืบหน้า "รอบที่ x/y" และปุ่มหยุดหลังจบรอบปัจจุบัน — <strong>ห้ามปิดหรือรีเฟรชหน้าระหว่างทำงาน</strong> ถ้าหยุดกลางคันหรือ session หมดอายุ ระบบจะบอกว่าทำไปแล้วกี่รายการและเหลืออีกกี่รายการ ให้เข้าสู่ระบบใหม่แล้วเลือกเฉพาะรายการที่เหลือทำต่อได้ทันที (รายการที่สำเร็จไปแล้วจะไม่ถูกทำซ้ำ)</li>
       <li><strong>ยกเลิก (Revoke)</strong>: ทำได้เฉพาะใบสถานะ ISSUED ต้องระบุเหตุผลเสมอ ใบที่ถูกยกเลิกจะหายจากผลค้นหาสาธารณะทันที แต่ยังตรวจสอบผ่านหน้า Verify ได้</li>
       <li><strong>ออกใหม่ (Reissue)</strong>: ทำได้เฉพาะใบสถานะ REVOKED กลับไปเป็น DRAFT โดย<strong>คงเลขที่เกียรติบัตรเดิมไว้เสมอ</strong> ไม่มีการกินเลขใหม่จากช่วงของกิจกรรม กด "ออกเลข" อีกครั้งเพื่อยืนยันการออกด้วยเลขเดิม (เลขจะเปลี่ยนก็ต่อเมื่อลบใบนั้นทิ้งแล้วสร้างใหม่เท่านั้น)</li>
-      <li><strong>ลบ</strong>: ปุ่ม "ลบ" อยู่ในคอลัมน์การจัดการของทุกแถว (เห็นเฉพาะ ADMIN) กดได้เมื่อใบอยู่ในสถานะ DRAFT/PENDING/REVOKED ส่วนใบสถานะ ISSUED ปุ่มจะเป็นสีเทากดไม่ได้ ต้อง "ยกเลิก" ก่อน</li>
+      <li><strong>ลบ</strong>: ปุ่ม "ลบ" อยู่ในคอลัมน์การจัดการของทุกแถว (เห็นเฉพาะ ADMIN) กดได้เมื่อใบอยู่ในสถานะ DRAFT/PENDING/REVOKED ส่วนใบสถานะ ISSUED ปุ่มจะเป็นสีเทากดไม่ได้ ต้อง "ยกเลิก" ก่อน — การลบเป็นการ<strong>ซ่อนออกจากทะเบียน ไม่ใช่ลบข้อมูลทิ้ง</strong> แถวยังอยู่ในชีตพร้อมเลขที่เดิม</li>
+      <li><strong>กู้คืน (Put Back)</strong>: เลือกตัวกรองสถานะเป็น <span class="font-mono text-xs">DELETED (ถูกลบ — กู้คืนได้)</span> จะเห็นใบที่ถูกลบทั้งหมด กดปุ่ม "กู้คืน" แล้วระบุเหตุผล (เฉพาะ ADMIN) ระบบจะคืนสถานะเป็น REVOKED ถ้าเคยยกเลิกไว้ก่อนลบ มิฉะนั้นคืนเป็น DRAFT โดย<strong>คงเลขที่เกียรติบัตรและข้อมูลเดิมไว้ทั้งหมด</strong> — เลขไม่มีทางชนกับใบอื่น เพราะระบบจองเลขของใบที่ถูกลบไว้ตลอด และถ้าแถวผู้เข้าร่วมถูกลบไปด้วย (ลบจากหน้านำเข้ารายชื่อ) ระบบจะสร้างคืนให้อัตโนมัติ</li>
       <li><strong>ตัวอย่าง / ดาวน์โหลด PDF / JPEG / QR</strong>: ใช้ได้เฉพาะใบสถานะ ISSUED เท่านั้น</li>
       <li><strong>ดาวน์โหลด Excel</strong>: ส่งออกทะเบียนตามกิจกรรม/สถานะที่กรองอยู่ในขณะนั้นเป็นไฟล์ .xlsx</li>
     </ul>
