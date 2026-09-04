@@ -13,12 +13,12 @@
 ความสามารถหลัก
 
 1. ผู้ดูแลสร้างและตั้งค่ากิจกรรม รวมถึง Google Slides template
-2. Admin/Staff นำเข้ารายชื่อและตรวจข้อมูลซ้ำก่อนบันทึก
+2. Admin/Staff เพิ่มรายชื่อทีละคน หรือนำเข้าเป็นชุดจากไฟล์ Excel/CSV พร้อมตรวจข้อมูลซ้ำก่อนบันทึก
 3. ระบบกำหนด `certificateId` และเลขที่เกียรติบัตรที่ไม่ซ้ำ
 4. สาธารณชนค้นหาจากชื่อ นามสกุล โรงเรียน หรือเลขที่เกียรติบัตรได้โดยไม่ต้องเข้าสู่ระบบ
 5. ระบบแสดงตัวอย่างและดาวน์โหลด PDF/JPEG แบบ on demand
 6. QR Code นำไปสู่หน้าตรวจสอบความถูกต้องของเกียรติบัตร
-7. Admin/Staff แก้ไขข้อมูล ออกใหม่ หรือยกเลิกเกียรติบัตรได้ พร้อม Audit Log
+7. Admin/Staff แก้ไขข้อมูล ออกใหม่ หรือยกเลิกเกียรติบัตรได้ ส่วน Admin ลบและกู้คืน (restore) ใบที่ลบไปแล้วได้ ทุกขั้นตอนมี Audit Log
 8. หน้า Public Search นำไปฝัง (Embed) ใน Google Sites ได้
 9. ผู้มีสิทธิ์สลับระหว่าง Public Mode และ Management Mode ได้จากปุ่มด้านขวาบน
 
@@ -28,7 +28,7 @@
 - ใช้ Google Apps Script เป็น Web App, backend และ API
 - ใช้ Google Sheets เป็นฐานข้อมูล และ Google Drive เก็บ template/asset ของระบบ
 - 1 กิจกรรมต่อ 1 Google Slides template (slide หลัก 1 หน้า)
-- Dynamic field บน template มีเพียง `{{name}}` และ `{{certNo}}`
+- Dynamic field บน template บังคับเพียง `{{name}}` และ `{{certNo}}` เพิ่ม `{{office}}`, `{{type}}`, `{{qr}}` ได้แบบไม่บังคับ (อย่างละไม่เกิน 1 ตำแหน่ง)
 - PDF/JPEG ที่ผู้ใช้ดาวน์โหลดสร้างแบบชั่วคราว แล้วลบไฟล์/สำเนาชั่วคราวทันทีหลังส่งกลับ: **ห้ามเก็บไฟล์เกียรติบัตรที่สร้างแล้วเป็นคลังถาวรใน Drive**
 
 ---
@@ -99,11 +99,13 @@ Public mode เป็นค่าเริ่มต้น และห้าม�
 | ดูตัวอย่าง/ดาวน์โหลด | ✓ | ✓ | ✓ |
 | แก้ไขข้อมูลเกียรติบัตร | ✓ | ✓ | – |
 | ออกใหม่/ยกเลิก (revoke) | ✓ | ✓ | – |
-| ลบถาวร | ✓ | – | – |
+| ลบเกียรติบัตรออกจากทะเบียน | ✓ | – | – |
+| กู้คืนเกียรติบัตรที่ถูกลบ (restore) | ✓ | – | – |
+| ลบผู้เข้าร่วม | ✓ | ✓ | – |
 | จัดการ Users / Settings | ✓ | – | – |
-| ดู Audit Logs | ✓ | – | – |
+| ดู Audit Logs / รายงานปัญหา | ✓ | – | – |
 
-ให้ใช้ `REVOKED` แทนการลบเมื่อเกียรติบัตรเคยออกให้ผู้รับแล้ว และแสดงผลอย่างชัดเจนในหน้า Verify
+ให้ใช้ `REVOKED` แทนการลบเมื่อเกียรติบัตรเคยออกให้ผู้รับแล้ว และแสดงผลอย่างชัดเจนในหน้า Verify — ระบบบังคับกติกานี้จริง โดยปฏิเสธการลบใบสถานะ `ISSUED` ทุกกรณี
 
 ---
 
@@ -173,12 +175,15 @@ status: ACTIVE | INACTIVE
 
 ```text
 participantId | activityId | prefixName | firstName | lastName | school |
-participantStatus | importBatchId | sourceRow | createdAt | createdBy | updatedAt | updatedBy
+participantStatus | importBatchId | sourceRow | createdAt | createdBy | updatedAt | updatedBy |
+trainingType
 ```
 
 ```text
 participantStatus: เข้าร่วม | ผ่านการอบรม
 ```
+
+`trainingType` คือ "ด้านการอบรม" ที่พิมพ์ลง `{{type}}` ในเกียรติบัตร เว้นว่างได้ตอนนำเข้า ระบบจะเติมค่าที่ตั้งไว้ระดับกิจกรรมให้แทน
 
 ### 5.5 Certificates
 
@@ -187,7 +192,7 @@ certificateId | activityId | participantId | certificateNo | runningNumber |
 prefixName | firstName | lastName | school | participantStatus | certificateStatus |
 originalPrefixName | originalFirstName | originalLastName |
 issuedAt | issuedBy | revokedAt | revokedBy | revokeReason |
-createdAt | createdBy | updatedAt | updatedBy
+createdAt | createdBy | updatedAt | updatedBy | trainingType
 ```
 
 ```text
@@ -199,6 +204,8 @@ certificateStatus: DRAFT | PENDING | ISSUED | REVOKED | DELETED
 - `certificateId` เป็น primary key ที่ไม่เปลี่ยน เช่น `CERT-ACT001-000001`
 - `certificateNo` คือเลขที่แสดงบนใบ ซึ่งอาจมีข้อความนำหน้า/เลขไทย จึงไม่ควรเป็น primary key
 - ไม่เก็บ `pdfFileId`, `jpegFileId`, หรือ URL ไฟล์ถาวร เพราะไฟล์ผลลัพธ์สร้างชั่วคราวเท่านั้น
+- **`DELETED` เป็น soft delete** แถวไม่เคยถูกลบออกจากชีต เปลี่ยนเฉพาะ `certificateStatus` แล้วกรองออกจากทะเบียนและผลค้นหาสาธารณะ — ข้อมูลทุกช่องรวมถึงเลขที่ยังอยู่ครบ จึงกู้คืนกลับมาเป็นใบเดิมได้ด้วย `restoreCertificate`
+- แถว `DELETED` ยัง**ถือครองเลขและลำดับ id ของตัวเองไว้ตลอด** ทั้ง `NumberService` (ตอนจองเลขถัดไป) และ `ParticipantService` (ตอนตั้ง suffix ของ id ที่นำเข้าใหม่) จึงต้องนับแถวเหล่านี้ด้วยเสมอ ไม่เช่นนั้นเลขหรือ id จะถูกแจกซ้ำ
 
 ### 5.6 GenerationQueue
 
@@ -221,7 +228,7 @@ logId | action | entityType | entityId | actorEmail | actorRole |
 beforeJson | afterJson | note | createdAt
 ```
 
-ตัวอย่าง action: `CREATE_ACTIVITY`, `IMPORT_PARTICIPANTS`, `ASSIGN_NUMBER`, `UPDATE_NAME`, `ISSUE_CERTIFICATE`, `REVOKE_CERTIFICATE`, `DELETE_CERTIFICATE`
+action ที่ระบบใช้จริง: `CREATE_ACTIVITY`, `UPDATE_ACTIVITY`, `DELETE_ACTIVITY`, `IMPORT_PARTICIPANTS`, `DELETE_PARTICIPANT`, `ASSIGN_NUMBER`, `UPDATE_NAME`, `ISSUE_CERTIFICATE`, `REVOKE_CERTIFICATE`, `REISSUE_CERTIFICATE`, `DELETE_CERTIFICATE`, `RESTORE_CERTIFICATE`, `MANAGE_USER`
 
 ---
 
@@ -233,6 +240,8 @@ beforeJson | afterJson | note | createdAt
 CERT-{activityId}-{sixDigitSequence}
 เช่น CERT-ACT001-000001
 ```
+
+`participantId` ใช้ suffix ชุดเดียวกัน (`PAR-ACT001-000001`) เพราะสร้างคู่กันตอนนำเข้า ลำดับ suffix ต้องเดินหน้าอย่างเดียว จึงคำนวณจาก**ทั้งแถว Participants และแถว Certificates** — แถว participant ถูกลบออกจากชีตได้จริง ส่วนแถว certificate เป็น soft delete ที่ยังถือ suffix นั้นไว้ ถ้านับเฉพาะฝั่ง participant ตัวนับจะถอยหลังและแจก `certificateId` ซ้ำ
 
 ### Certificate Number
 
@@ -269,12 +278,17 @@ prefixName + firstName + " " + lastName
 
 ## 7. Google Slides Template
 
-หนึ่งกิจกรรมใช้ Google Slides template หนึ่งไฟล์ โดยมี slide หลักเพียงหน้าเดียว และกำหนด dynamic placeholders แค่สองจุด
+หนึ่งกิจกรรมใช้ Google Slides template หนึ่งไฟล์ โดยมี slide หลักเพียงหน้าเดียว และกำหนด dynamic placeholders 2 จุดที่บังคับ
 
 ```text
-{{name}}
-{{certNo}}
+{{name}}      บังคับ
+{{certNo}}    บังคับ
+{{office}}    ไม่บังคับ — สถานศึกษา/หน่วยงานของผู้รับ
+{{type}}      ไม่บังคับ — ด้านการอบรม
+{{qr}}        ไม่บังคับ — QR สำหรับหน้า Verify
 ```
+
+placeholder ที่ไม่บังคับจะใส่หรือไม่ใส่ก็ได้ แต่ถ้าใส่ต้องมีไม่เกิน 1 ตำแหน่งเช่นเดียวกับตัวบังคับ
 
 รูปแบบตำแหน่งที่ต้องใช้
 
@@ -300,6 +314,8 @@ prefixName + firstName + " " + lastName
 |---|---|---|
 | `{{certNo}}` | มุมขวาบน | RIGHT |
 | `{{name}}` | ช่วงกึ่งกลางแนวนอน | CENTER |
+| `{{office}}` | ใต้ชื่อผู้รับ | CENTER |
+| `{{type}}` | ในบรรทัด "ได้ผ่านการอบรม..." | CENTER |
 
 Template สามารถมี background, logo, ลายเซ็น และข้อความคงที่ได้ แต่ไม่ควรเพิ่ม placeholder อื่นโดยไม่จำเป็น
 
@@ -310,7 +326,7 @@ Template สามารถมี background, logo, ลายเซ็น แล
 1. ตรวจว่า `templateId` เข้าถึงได้และเป็น Google Slides
 2. ตรวจว่ามี slide อย่างน้อยหนึ่งหน้า
 3. ค้นหา `{{name}}` และ `{{certNo}}` ทั้งสองค่า
-4. แจ้ง error แบบชัดเจนหาก placeholder หาย หรือมีซ้ำมากกว่าที่ออกแบบไว้
+4. แจ้ง error แบบชัดเจนหาก placeholder หาย หรือมีซ้ำมากกว่าที่ออกแบบไว้ — รวมถึง `{{office}}`, `{{type}}`, `{{qr}}` ที่ไม่บังคับแต่ห้ามซ้ำ
 5. มีปุ่ม `Preview Template` สำหรับทดสอบด้วยข้อมูลจำลอง
 
 ---
@@ -408,11 +424,19 @@ Embed เฉพาะ Public Search URL ใน Google Sites ส่วน Managem
 
 1. **Dashboard** — จำนวนกิจกรรม ผู้เข้าร่วม ออกแล้ว รอดำเนินการ ยกเลิก และตารางสรุปต่อกิจกรรม
 2. **Activities** — สร้าง/แก้ไขกิจกรรม ตั้งค่าเลขที่และ template
-3. **Participants** — นำเข้า CSV/XLSX, preview, validation, duplicate check และแก้ไขรายชื่อ
+3. **Participants** — เพิ่มทีละรายการ หรือนำเข้าจากไฟล์ CSV/XLSX พร้อม preview, validation, duplicate check และแก้ไข/ลบรายชื่อ
 4. **Certificate Generator** — กำหนดเลขที่, สร้างคิว/batch และติดตาม progress
-5. **Certificates** — ค้นหา ดูตัวอย่าง แก้ไข ออกใหม่ ยกเลิก และลบตาม role
-6. **Users** — ADMIN เท่านั้น สำหรับเพิ่ม/ปิดใช้งานผู้ใช้และกำหนด role
-7. **Settings / Audit Logs** — ADMIN เท่านั้น
+5. **Certificates** — ค้นหา ดูตัวอย่าง แก้ไข ออกใหม่ ยกเลิก ลบ และกู้คืนตาม role
+6. **Guide** — คู่มือการใช้งานในระบบ (เนื้อหาเดียวกับ `docs/user-guide.md`)
+7. **Users** — ADMIN เท่านั้น สำหรับเพิ่ม/ปิดใช้งานผู้ใช้และกำหนด role
+8. **Settings / Audit Logs / รายงานปัญหา** — ADMIN เท่านั้น
+
+### การนำเข้ารายชื่อ
+
+หน้า Participants มี 2 ทางเข้า ซึ่งใช้ pipeline ตรวจสอบชุดเดียวกัน (`validateImport` → `importParticipants`) จึงได้ duplicate check และการสร้าง Certificate สถานะ `DRAFT` เหมือนกัน
+
+1. **เพิ่มทีละรายการ** — ฟอร์มกรอกทีละคน ส่ง payload 1 แถว เตือนเมื่อซ้ำและให้ติ๊กยืนยันก่อนบันทึก
+2. **นำเข้าจากไฟล์ Excel/CSV** — อัปโหลด `.csv/.xlsx/.xls` (จับคู่หัวคอลัมน์ไทย/อังกฤษอัตโนมัติ) หรือวางข้อความคั่นด้วยจุลภาค/Tab พร้อมปุ่มดาวน์โหลด Template Excel
 
 ### Import validation
 
@@ -429,6 +453,8 @@ Duplicate detection ขั้นต่ำใช้คีย์ผสม
 ```text
 activityId + firstName + lastName + school
 ```
+
+ข้อจำกัดที่ระบบบังคับจริง: นำเข้าได้สูงสุด **5,000 แถวต่อครั้ง**, แถวที่ขาดชื่อหรือนามสกุลถูกปฏิเสธ, `participantStatus` ต้องเป็น `เข้าร่วม` หรือ `ผ่านการอบรม` เท่านั้น (เว้นว่าง = `ผ่านการอบรม`) และ `commitImport` จะ revalidate อีกครั้งหลังจับ `LockService` แล้ว เพื่อไม่ให้การนำเข้าพร้อมกันผ่าน duplicate check จาก snapshot เดียวกัน
 
 ---
 
@@ -454,42 +480,43 @@ activityId + firstName + lastName + school
 | `verify` | `id` | ตรวจสถานะ certificate |
 | `preview` | `id` | สร้าง preview ชั่วคราว |
 | `download` | `id`, `format=pdf\|jpeg` | สร้างไฟล์ชั่วคราว |
+| `reportIssue` | `id`, รายละเอียดปัญหา | ให้ผู้รับแจ้งข้อมูลผิดจากหน้า Verify |
+| `login` / `logout` / `session` | `userId`, `password` / token | จัดการ session ของ Management Mode |
 
 ### Management actions (`doPost` หรือ `google.script.run`)
 
+รายการจริงตามที่ประกาศไว้ใน `Code.gs` (`PERMISSIONS.MANAGEMENT`) พร้อม role ที่เรียกได้
+
 ```text
-createActivity
-updateActivity
-validateTemplate
-importParticipants
-assignNumbers
-createGenerationQueue
-getGenerationProgress
-updateCertificate
-issueCertificate
-issueCertificates
-revokeCertificate
-revokeCertificates
-reissueCertificate
-deleteCertificate
-deleteCertificates
-manageUser
-getAuditLogs
+ADMIN + STAFF
+  getActivities  importParticipants  validateImport  getParticipants
+  updateParticipant  deleteParticipant  deleteParticipants
+  getCertificates  getDashboardStats  assignNumbers
+  createGenerationQueue  getGenerationProgress  processGenerationQueue  cancelGenerationQueue
+  updateCertificate  issueCertificate  issueCertificates
+  revokeCertificate  revokeCertificates  reissueCertificate
+
+ADMIN เท่านั้น
+  createActivity  updateActivity  deleteActivity
+  validateTemplate  previewTemplate
+  deleteCertificate  deleteCertificates  restoreCertificate
+  getUsers  manageUser  getSettings  updateSettings
+  getAuditLogs  getReports  resolveReport
 ```
 
-ทุก management action ต้องตรวจ session token, userId, role, input validation และบันทึก Audit Log
+ทุก management action ต้องตรวจ session token, userId, role, input validation และบันทึก Audit Log — การเพิ่ม action ใหม่ต้องลงทะเบียนในตารางสิทธิ์นี้ก่อนเสมอ ไม่เช่นนั้นจะถูกปฏิเสธที่ entry point
 
 ---
 
-## 12. โครงสร้างไฟล์ที่แนะนำ
+## 12. โครงสร้างไฟล์
 
 ```text
-certificate-management-system/
+CertiFlow/
 ├── appsscript.json
 ├── src/
-│   ├── Code.gs                 # doGet/doPost และ entry point
-│   ├── Config.gs               # keys/ค่าคงที่
-│   ├── AuthService.gs          # ตรวจ user และ role
+│   ├── Code.gs                 # doGet/doPost, ตารางสิทธิ์ และ entry point
+│   ├── Config.gs               # keys/ค่าคงที่/HEADERS ของทุกชีต
+│   ├── AuthService.gs          # ตรวจ user, role และ session
 │   ├── SheetService.gs         # อ่าน/เขียน Sheets แบบ batch
 │   ├── ActivityService.gs
 │   ├── ParticipantService.gs
@@ -499,7 +526,10 @@ certificate-management-system/
 │   ├── ExportService.gs        # temporary Slides/PDF/JPEG
 │   ├── SearchService.gs
 │   ├── QueueService.gs
+│   ├── ReportService.gs        # รับเรื่องแจ้งข้อมูลผิดจากหน้า Verify
+│   ├── SettingsService.gs
 │   ├── AuditService.gs
+│   ├── ProductionSetup.gs      # bootstrap ชีตและบัญชีเริ่มต้น
 │   ├── Validation.gs
 │   └── Utils.gs
 ├── web/
@@ -513,17 +543,30 @@ certificate-management-system/
 │       ├── Activities.html
 │       ├── Participants.html
 │       ├── Certificates.html
+│       ├── Guide.html
 │       └── Settings.html
-├── tests/
+├── tests/                      # node ล้วน ไม่พึ่ง Apps Script runtime (`npm test`)
+│   ├── ActivityTemplateNumber.test.js
+│   ├── AuthAndApiRouting.test.js
+│   ├── ImportAndCertificateLifecycle.test.js
+│   ├── NumberIntegrity.test.js
 │   ├── NumberService.test.js
+│   ├── Phase5ExportQueueVerify.test.js
+│   ├── QueueResume.test.js
+│   ├── RepositoryAudit.test.js
+│   ├── SchemaValidation.test.js
+│   ├── UserIdAuth.test.js
 │   ├── Validation.test.js
 │   └── fixtures/
 ├── docs/
 │   ├── sheet-schema.md
 │   ├── deployment.md
-│   └── template-guide.md
+│   ├── template-guide.md
+│   └── user-guide.md
 └── README.md
 ```
+
+ทุกไฟล์ใน `src/` เป็น object literal ที่ปิดท้ายด้วย `module.exports` แบบมีเงื่อนไข จึง `require` เข้ามาทดสอบใน node ได้ตรง ๆ และเรียกหากันผ่าน global object เมื่อรันบน Apps Script (มี `typeof X !== 'undefined'` คุมไว้ทุกจุด)
 
 ใช้ `clasp` เพื่อ sync source จาก VS Code ไปยัง Apps Script แต่ไม่ commit `.clasp.json` หากไฟล์มี `scriptId` หรือข้อมูลเฉพาะ environment โดยไม่จำเป็น
 
@@ -550,6 +593,8 @@ certificate-management-system/
 - Template ที่ขาด `{{name}}` หรือ `{{certNo}}` ถูกปฏิเสธพร้อมข้อความอธิบาย
 - Import แสดง preview, error และ duplicate ก่อนยืนยันบันทึก
 - การกำหนดเลขพร้อมกันไม่ทำให้ `certificateId` หรือ `certificateNo` ซ้ำ
+- การลบแล้วนำเข้ารายชื่อใหม่ต้องไม่ทำให้ `certificateId` หรือ `participantId` ถูกแจกซ้ำ (ลำดับ suffix เดินหน้าอย่างเดียว)
+- เกียรติบัตรที่ถูกลบ (`DELETED`) กู้คืนกลับมาเป็นใบเดิมได้ พร้อม `certificateId` และเลขที่เดิม โดยคืนสถานะตรงกับก่อนถูกลบ
 - Public user ค้นหาและตรวจ QR ได้โดยไม่ต้อง login
 - Public user ไม่เห็นคำสั่งแก้ไข, revoke, delete หรือ Audit Log
 - PDF/JPEG ที่ดาวน์โหลดมีชื่อและเลขที่ถูกต้อง และไม่มีไฟล์ผลลัพธ์คงอยู่ใน Drive หลังงานเสร็จ
@@ -874,14 +919,16 @@ Audit Logs: filter ตาม action, entityType, actor, ช่วงเวลา
 1. สร้าง Spreadsheet และรัน `initializeDatabase()` ในสำเนาทดสอบ
 2. ตั้ง Script Properties และเพิ่มผู้ใช้ ADMIN อย่างน้อยหนึ่งราย
 3. สร้างกิจกรรม test และผูก template ที่มี `{{name}}`, `{{certNo}}`
-4. นำเข้ารายชื่อทดสอบที่มีทั้งข้อมูลถูกต้อง ผิดพลาด และซ้ำ
+4. นำเข้ารายชื่อทดสอบทั้งสองทาง (เพิ่มทีละรายการ และไฟล์ Excel/CSV) ด้วยข้อมูลที่มีทั้งถูกต้อง ผิดพลาด และซ้ำ
 5. กำหนดเลขพร้อมตรวจเลขไทย/อารบิก, ขอบเขตเลข และการชนกัน
 6. ทดสอบ search, preview, PDF/JPEG บน desktop และมือถือ
 7. ยืนยันว่า temporary files ถูกลบหลัง export ทั้งกรณีสำเร็จและล้มเหลว
 8. สแกน QR และตรวจทั้งสถานะ ISSUED, REVOKED, Not Found
 9. ทดสอบสิทธิ์ ADMIN, STAFF และ Public แยกกัน
 10. Embed Public URL ใน Google Sites และตรวจการทำงานจริง
-11. ตรวจ Audit Log ของ create, import, edit, issue, revoke และ delete
+11. ลบเกียรติบัตร แล้วกู้คืน (restore) ตรวจว่าได้ `certificateId` และเลขที่เดิม สถานะตรงกับก่อนลบ
+12. ลบผู้เข้าร่วมคนท้ายสุด แล้วนำเข้าใหม่ ตรวจว่า `certificateId` ไม่ถูกแจกซ้ำกับใบที่ลบไป
+13. ตรวจ Audit Log ของ create, import, edit, issue, revoke, delete และ restore
 
 ---
 
@@ -890,7 +937,9 @@ Audit Logs: filter ตาม action, entityType, actor, ช่วงเวลา
 - Apps Script มีเวลาประมวลผลต่อครั้งจำกัด จึงห้ามออกไฟล์เป็นจำนวนมากใน loop เดียว; ใช้ `GenerationQueue` และ batch
 - Management Mode ใช้ credential ภายในระบบ ไม่พึ่งอีเมล Google Account; ต้องทดสอบ session expiry และ role ก่อนเปิดใช้งานจริง
 - Google Slides export เป็น JPEG อาจต้องพึ่ง endpoint/thumbnail ที่เหมาะกับสิทธิ์ของไฟล์; ต้องทดลองกับ template จริงตั้งแต่ Phase 5
-- เกียรติบัตรที่เคยออกไปแล้วควร `REVOKED` แทน delete เพื่อรักษาความน่าเชื่อถือของระบบ
+- เกียรติบัตรที่เคยออกไปแล้วควร `REVOKED` แทน delete เพื่อรักษาความน่าเชื่อถือของระบบ (ระบบปฏิเสธการลบใบสถานะ `ISSUED` อยู่แล้ว)
+- การลบเกียรติบัตรเป็น soft delete จึงกู้คืนได้ แต่การลบผู้เข้าร่วมจากหน้า Participants ลบแถวออกจากชีตจริง — การกู้คืนเกียรติบัตรจะสร้างแถวผู้เข้าร่วมคืนจากข้อมูลบนแถวเกียรติบัตร
+- ห้ามล้างแถวสถานะ `DELETED` ออกจากชีต `Certificates` ด้วยมือ เพราะแถวเหล่านั้นถือครองเลขที่และลำดับ id ไว้ ถ้าลบทิ้งระบบจะแจกเลข/id ซ้ำ
 - ตั้งสิทธิ์ Drive folder และ Spreadsheet ให้แคบที่สุดเท่าที่งานจำเป็น
 
 ---
