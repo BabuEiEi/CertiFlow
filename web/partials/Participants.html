@@ -2,9 +2,14 @@
 <section id="participantsSection" class="space-y-6">
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <h2 class="text-xl font-bold text-navy-900">นำเข้าและจัดการผู้เข้าร่วม (Participants)</h2>
-    <button id="btnImportParticipants" onclick="openImportModal()" class="px-4 py-2 bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium rounded-md shadow-sm transition">
-      + นำเข้ารายชื่อ (CSV/Text)
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <button id="btnAddSingleParticipant" onclick="openSingleParticipantModal()" class="px-4 py-2 bg-white hover:bg-slate-50 text-navy-800 border border-navy-300 text-sm font-medium rounded-md shadow-sm transition">
+        + เพิ่มทีละรายการ
+      </button>
+      <button id="btnImportParticipants" onclick="openImportModal()" class="px-4 py-2 bg-navy-800 hover:bg-navy-900 text-white text-sm font-medium rounded-md shadow-sm transition">
+        + นำเข้าจากไฟล์ Excel/CSV
+      </button>
+    </div>
   </div>
 
   <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -56,11 +61,77 @@
   </div>
 </section>
 
-<!-- Import Modal -->
+<!-- Single Participant Modal (add one row at a time; reuses the import validation) -->
+<div id="singleParticipantModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
+  <form onsubmit="handleAddSingleParticipant(event)" class="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto text-sm">
+    <div class="flex justify-between items-center border-b pb-3">
+      <h3 class="text-lg font-bold text-slate-900">เพิ่มผู้เข้าร่วมทีละรายการ</h3>
+      <button type="button" onclick="closeSingleParticipantModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+    </div>
+
+    <div>
+      <label class="block font-medium text-slate-700 mb-1">เลือกกิจกรรม *</label>
+      <select id="singleParticipantActivitySelect" required class="w-full rounded-md border p-2 border-slate-300 bg-white">
+        <option value="">-- เลือกกิจกรรม --</option>
+      </select>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">คำนำหน้า</label>
+        <input id="singleParticipantPrefix" placeholder="นาย" class="w-full rounded-md border p-2 border-slate-300">
+      </div>
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">ชื่อ *</label>
+        <input id="singleParticipantFirst" required placeholder="ภัทรพล" class="w-full rounded-md border p-2 border-slate-300">
+      </div>
+      <div>
+        <label class="block font-medium text-slate-700 mb-1">นามสกุล *</label>
+        <input id="singleParticipantLast" required placeholder="แก้วเสนา" class="w-full rounded-md border p-2 border-slate-300">
+      </div>
+    </div>
+
+    <div>
+      <label class="block font-medium text-slate-700 mb-1">สถานศึกษา/หน่วยงาน</label>
+      <input id="singleParticipantSchool" placeholder="โรงเรียนสาธิต" class="w-full rounded-md border p-2 border-slate-300">
+    </div>
+
+    <div>
+      <label class="block font-medium text-slate-700 mb-1">ด้านการอบรม</label>
+      <input id="singleParticipantTrainingType" placeholder="เว้นว่างได้ ระบบจะใช้ค่าที่ตั้งไว้ในหน้ากิจกรรม" class="w-full rounded-md border p-2 border-slate-300">
+    </div>
+
+    <div>
+      <label class="block font-medium text-slate-700 mb-1">สถานะ</label>
+      <select id="singleParticipantStatus" class="w-full rounded-md border p-2 border-slate-300 bg-white">
+        <option>ผ่านการอบรม</option>
+        <option>เข้าร่วม</option>
+      </select>
+    </div>
+
+    <div id="singleParticipantDuplicateBox" class="hidden flex items-start space-x-2 text-xs text-amber-800 bg-amber-50 p-2.5 rounded border border-amber-200">
+      <input type="checkbox" id="chkSingleAllowDuplicate" class="mt-0.5 rounded text-navy-600">
+      <label for="chkSingleAllowDuplicate"><span id="singleParticipantDuplicateReason" class="font-semibold"></span> — ติ๊กช่องนี้แล้วกดบันทึกอีกครั้งเพื่อยืนยันเพิ่มรายชื่อที่อาจซ้ำซ้อน</label>
+    </div>
+
+    <div class="flex items-center justify-between pt-3 border-t">
+      <label class="flex items-center space-x-2 text-xs text-slate-600">
+        <input type="checkbox" id="chkKeepAddingParticipant" class="rounded text-navy-600">
+        <span>บันทึกแล้วเปิดฟอร์มค้างไว้เพื่อเพิ่มรายถัดไป</span>
+      </label>
+      <div class="space-x-3">
+        <button type="button" onclick="closeSingleParticipantModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md font-medium">ยกเลิก</button>
+        <button type="submit" class="px-5 py-2 bg-navy-800 hover:bg-navy-900 text-white rounded-md font-medium">บันทึก</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Import Modal (bulk, Excel/CSV file or pasted text) -->
 <div id="importModal" class="hidden fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4">
   <div class="bg-white rounded-xl shadow-xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
     <div class="flex justify-between items-center border-b pb-3">
-      <h3 class="text-lg font-bold text-slate-900">นำเข้ารายชื่อผู้เข้าร่วม</h3>
+      <h3 class="text-lg font-bold text-slate-900">นำเข้ารายชื่อจากไฟล์ Excel/CSV</h3>
       <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
     </div>
 

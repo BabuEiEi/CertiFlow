@@ -850,13 +850,15 @@
     callApi('getActivities')
       .then((activities) => {
         CertiFlowState.activities = activities || [];
-        const select1 = document.getElementById('participantActivitySelect');
-        const select2 = document.getElementById('importModalActivitySelect');
-
         const optionsHtml = '<option value="">-- เลือกกิจกรรม --</option>' + activities.map(a => `<option value="${escapeHtml(a.activityId)}">${escapeHtml(a.activityName)} (${escapeHtml(a.activityId)})</option>`).join('');
 
-        if (select1) select1.innerHTML = optionsHtml;
-        if (select2) select2.innerHTML = optionsHtml;
+        ['participantActivitySelect', 'importModalActivitySelect', 'singleParticipantActivitySelect'].forEach(id => {
+          const select = document.getElementById(id);
+          if (!select) return;
+          const previousValue = select.value;
+          select.innerHTML = optionsHtml;
+          if (previousValue) select.value = previousValue;
+        });
       })
       .catch((err) => console.log('Could not load participant activities:', err));
   }
@@ -1042,6 +1044,110 @@
     callApi('updateParticipant', { participantId, updates })
       .then(() => { closeParticipantModal(); loadParticipantsList(); showAlert('แก้ไขผู้เข้าร่วมเรียบร้อย'); })
       .catch(err => showAlert(`แก้ไขไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  /* --- Single-participant entry (shares validateImport/importParticipants with the bulk flow) --- */
+
+  const SINGLE_PARTICIPANT_INPUT_IDS = [
+    'singleParticipantPrefix', 'singleParticipantFirst', 'singleParticipantLast',
+    'singleParticipantSchool', 'singleParticipantTrainingType'
+  ];
+
+  function openSingleParticipantModal() {
+    const modal = document.getElementById('singleParticipantModal');
+    if (!modal) return;
+
+    SINGLE_PARTICIPANT_INPUT_IDS.forEach(id => {
+      const input = document.getElementById(id);
+      if (input) input.value = '';
+    });
+    const status = document.getElementById('singleParticipantStatus');
+    if (status) status.value = 'ผ่านการอบรม';
+    const keepAdding = document.getElementById('chkKeepAddingParticipant');
+    if (keepAdding) keepAdding.checked = false;
+    resetSingleParticipantDuplicateWarning();
+
+    // Default to the activity already being viewed so the new row shows up right away.
+    const activitySelect = document.getElementById('singleParticipantActivitySelect');
+    const listSelect = document.getElementById('participantActivitySelect');
+    if (activitySelect && listSelect && listSelect.value) activitySelect.value = listSelect.value;
+
+    modal.classList.remove('hidden');
+    const firstName = document.getElementById('singleParticipantFirst');
+    if (firstName) firstName.focus();
+  }
+
+  function closeSingleParticipantModal() {
+    const modal = document.getElementById('singleParticipantModal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function resetSingleParticipantDuplicateWarning() {
+    const box = document.getElementById('singleParticipantDuplicateBox');
+    if (box) box.classList.add('hidden');
+    const checkbox = document.getElementById('chkSingleAllowDuplicate');
+    if (checkbox) checkbox.checked = false;
+  }
+
+  function handleAddSingleParticipant(event) {
+    event.preventDefault();
+    const activityId = document.getElementById('singleParticipantActivitySelect').value;
+    if (!activityId) return showAlert('กรุณาเลือกกิจกรรมที่จะเพิ่มรายชื่อ', true);
+
+    const row = {
+      prefixName: document.getElementById('singleParticipantPrefix').value,
+      firstName: document.getElementById('singleParticipantFirst').value,
+      lastName: document.getElementById('singleParticipantLast').value,
+      school: document.getElementById('singleParticipantSchool').value,
+      trainingType: document.getElementById('singleParticipantTrainingType').value,
+      participantStatus: document.getElementById('singleParticipantStatus').value
+    };
+    const dupCheckbox = document.getElementById('chkSingleAllowDuplicate');
+    const allowOverride = dupCheckbox ? dupCheckbox.checked : false;
+
+    callApi('validateImport', { activityId, rows: [row] })
+      .then((res) => {
+        if (res.errorRows.length) {
+          resetSingleParticipantDuplicateWarning();
+          return showAlert(`เพิ่มไม่สำเร็จ: ${res.errorRows[0].error}`, true);
+        }
+        if (res.duplicateRows.length && !allowOverride) {
+          const box = document.getElementById('singleParticipantDuplicateBox');
+          const reason = document.getElementById('singleParticipantDuplicateReason');
+          if (reason) reason.textContent = res.duplicateRows[0].duplicateReason;
+          if (box) box.classList.remove('hidden');
+          return showAlert('รายชื่อนี้อาจซ้ำกับที่มีอยู่แล้ว — โปรดยืนยันก่อนบันทึก', true);
+        }
+        return commitSingleParticipant(activityId, row, allowOverride);
+      })
+      .catch((err) => showAlert(`เพิ่มรายชื่อไม่สำเร็จ: ${err.message}`, true));
+  }
+
+  function commitSingleParticipant(activityId, row, allowOverride) {
+    return callApi('importParticipants', { activityId, rows: [row], allowOverride })
+      .then((res) => {
+        if (!res.importedCount) return showAlert('ไม่มีรายชื่อถูกบันทึก โปรดตรวจสอบข้อมูลอีกครั้ง', true);
+
+        // Point the table at the activity just written to, so the new row is visible.
+        const listSelect = document.getElementById('participantActivitySelect');
+        if (listSelect && listSelect.value !== activityId) listSelect.value = activityId;
+        loadParticipantsList();
+        showAlert(`เพิ่มรายชื่อ ${row.firstName} ${row.lastName} เรียบร้อย`);
+
+        const keepAdding = document.getElementById('chkKeepAddingParticipant');
+        if (keepAdding && keepAdding.checked) {
+          // Keep activity/school/training type — repeat entries usually share them.
+          ['singleParticipantPrefix', 'singleParticipantFirst', 'singleParticipantLast'].forEach(id => {
+            const input = document.getElementById(id);
+            if (input) input.value = '';
+          });
+          resetSingleParticipantDuplicateWarning();
+          const firstName = document.getElementById('singleParticipantFirst');
+          if (firstName) firstName.focus();
+        } else {
+          closeSingleParticipantModal();
+        }
+      });
   }
 
   function openImportModal() {
