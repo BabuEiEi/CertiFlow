@@ -46,7 +46,7 @@ const SettingsService = {
     this.syncSettingsSheet_(changed);
     const after = this.getSettings();
     if (typeof AuditService !== 'undefined') {
-      AuditService.log('UPDATE_SETTINGS', 'Settings', 'SYSTEM', before, after, `Updated settings: ${Object.keys(changed).join(', ')}`);
+      AuditService.log(AuditService.ACTIONS.UPDATE_SETTINGS, 'Settings', 'SYSTEM', before, after, `Updated settings: ${Object.keys(changed).join(', ')}`);
     }
     return after;
   },

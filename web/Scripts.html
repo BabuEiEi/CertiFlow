@@ -869,12 +869,19 @@
     const totalCount = document.getElementById('totalParticipantCount');
 
     if (!activityId) {
-      if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td></tr>';
+      CertiFlowState.participants = [];
+      CertiFlowState.selectedParticipantIds = [];
+      CertiFlowState.participantFullList = [];
+      CertiFlowState.participantPage = 1;
+      CertiFlowState.renderedParticipantIds = [];
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td></tr>';
       if (totalCount) totalCount.textContent = '0';
+      updateParticipantSelectionUi();
+      renderParticipantPaginationControls(0, 0, 0);
       return;
     }
 
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายชื่อผู้เข้าร่วม...</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">กำลังโหลดรายชื่อผู้เข้าร่วม...</td></tr>';
 
     callApi('getParticipants', { activityId })
       .then((participants) => {
@@ -883,39 +890,113 @@
         // selection always starts clean after a refresh.
         CertiFlowState.selectedParticipantIds = [];
         if (totalCount) totalCount.textContent = participants.length;
-        if (!tbody) return;
-
-        CertiFlowState.renderedParticipantIds = (participants || []).map(p => p.participantId);
-
-        if (!participants || participants.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">ยังไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
-          updateParticipantSelectionUi();
-          return;
-        }
-
-        tbody.innerHTML = participants.map(p => `
-          <tr>
-            <td class="px-4 py-3 text-center">
-              <input type="checkbox" class="participant-row-check h-4 w-4 rounded border-slate-300 align-middle" data-participant-id="${escapeHtml(p.participantId)}"
-                onchange="toggleParticipantSelection('${p.participantId}', this.checked)" ${isParticipantSelected(p.participantId) ? 'checked' : ''}>
-            </td>
-            <td class="px-4 py-3 font-mono text-xs">${escapeHtml(p.participantId)}</td>
-            <td class="px-4 py-3 text-slate-600">${escapeHtml(p.prefixName || '-')}</td>
-            <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</td>
-            <td class="px-4 py-3 text-slate-600">${escapeHtml(p.school || '-')}</td>
-            <td class="px-4 py-3 text-slate-600">${escapeHtml(p.trainingType || '-')}</td>
-            <td class="px-4 py-3 text-center">
-              <span class="px-2 py-0.5 rounded text-xs font-semibold bg-navy-50 text-navy-700">${escapeHtml(p.participantStatus)}</span>
-            </td>
-            <td class="px-4 py-3 text-right space-x-1.5">
-              <button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium">แก้ไข</button>
-              <button onclick="openDeleteParticipantModal('${p.participantId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>
-            </td>
-          </tr>
-        `).join('');
-        updateParticipantSelectionUi();
+        renderParticipantsTable(participants);
       })
       .catch((err) => showAlert(`โหลดรายชื่อล้มเหลว: ${err.message}`, true));
+  }
+
+  /* --- Participants Pagination State & Controller --- */
+  const PARTICIPANT_PAGE_SIZE_DEFAULT = 50;
+
+  function renderParticipantsTable(participants) {
+    CertiFlowState.participantFullList = participants || [];
+    CertiFlowState.participantPage = 1;
+    renderParticipantTablePage();
+  }
+
+  function renderParticipantTablePage() {
+    const tbody = document.getElementById('participantTableBody');
+    if (!tbody) return;
+    const all = CertiFlowState.participantFullList || [];
+    const pageSize = CertiFlowState.participantPageSize || PARTICIPANT_PAGE_SIZE_DEFAULT;
+    const totalItems = all.length;
+    if (!totalItems) {
+      CertiFlowState.renderedParticipantIds = [];
+      tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-6 text-center text-slate-400">ไม่มีข้อมูลผู้เข้าร่วมในกิจกรรมนี้</td></tr>';
+      updateParticipantSelectionUi();
+      renderParticipantPaginationControls(0, 0, 0);
+      return;
+    }
+    const effectivePageSize = pageSize === 'ALL' ? totalItems : pageSize;
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+    if (!CertiFlowState.participantPage || CertiFlowState.participantPage > totalPages) CertiFlowState.participantPage = totalPages;
+    if (CertiFlowState.participantPage < 1) CertiFlowState.participantPage = 1;
+    const startIdx = (CertiFlowState.participantPage - 1) * effectivePageSize;
+    const pageItems = pageSize === 'ALL' ? all : all.slice(startIdx, startIdx + effectivePageSize);
+    CertiFlowState.renderedParticipantIds = pageItems.map(p => p.participantId);
+
+    tbody.innerHTML = pageItems.map(p => `
+      <tr>
+        <td class="px-4 py-3 text-center">
+          <input type="checkbox" class="participant-row-check h-4 w-4 rounded border-slate-300 align-middle" data-participant-id="${escapeHtml(p.participantId)}"
+            onchange="toggleParticipantSelection('${p.participantId}', this.checked)" ${isParticipantSelected(p.participantId) ? 'checked' : ''}>
+        </td>
+        <td class="px-4 py-3 font-mono text-xs">${escapeHtml(p.participantId)}</td>
+        <td class="px-4 py-3 text-slate-600">${escapeHtml(p.prefixName || '-')}</td>
+        <td class="px-4 py-3 font-medium text-slate-900">${escapeHtml(p.firstName)} ${escapeHtml(p.lastName)}</td>
+        <td class="px-4 py-3 text-slate-600">${escapeHtml(p.school || '-')}</td>
+        <td class="px-4 py-3 text-slate-600">${escapeHtml(p.trainingType || '-')}</td>
+        <td class="px-4 py-3 text-center">
+          <span class="px-2 py-0.5 rounded text-xs font-semibold bg-navy-50 text-navy-700">${escapeHtml(p.participantStatus)}</span>
+        </td>
+        <td class="px-4 py-3 text-right space-x-1.5">
+          <button onclick="openParticipantModal('${p.participantId}')" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-medium">แก้ไข</button>
+          <button onclick="openDeleteParticipantModal('${p.participantId}')" class="px-2 py-1 bg-rose-700 hover:bg-rose-800 text-white rounded text-xs font-medium">ลบ</button>
+        </td>
+      </tr>
+    `).join('');
+    updateParticipantSelectionUi();
+    renderParticipantPaginationControls(totalItems, startIdx + 1, startIdx + pageItems.length);
+  }
+
+  function changeParticipantPageSize(value) {
+    CertiFlowState.participantPageSize = value === 'ALL' ? 'ALL' : parseInt(value, 10);
+    CertiFlowState.participantPage = 1;
+    renderParticipantTablePage();
+  }
+
+  function goToParticipantPage(page) {
+    CertiFlowState.participantPage = page;
+    renderParticipantTablePage();
+  }
+
+  function participantPagePrev() {
+    if ((CertiFlowState.participantPage || 1) > 1) goToParticipantPage(CertiFlowState.participantPage - 1);
+  }
+
+  function participantPageNext() {
+    const totalItems = (CertiFlowState.participantFullList || []).length;
+    const pageSize = CertiFlowState.participantPageSize || PARTICIPANT_PAGE_SIZE_DEFAULT;
+    const effectivePageSize = pageSize === 'ALL' ? totalItems : pageSize;
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+    if ((CertiFlowState.participantPage || 1) < totalPages) goToParticipantPage(CertiFlowState.participantPage + 1);
+  }
+
+  function renderParticipantPaginationControls(totalItems, rangeStart, rangeEnd) {
+    const bar = document.getElementById('participantPaginationBar');
+    if (!bar) return;
+    if (!totalItems) {
+      bar.classList.add('hidden');
+      return;
+    }
+    bar.classList.remove('hidden');
+    const pageSize = CertiFlowState.participantPageSize || PARTICIPANT_PAGE_SIZE_DEFAULT;
+    const effectivePageSize = pageSize === 'ALL' ? totalItems : pageSize;
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectivePageSize));
+    const current = CertiFlowState.participantPage || 1;
+    const summary = document.getElementById('participantPaginationSummary');
+    if (summary) summary.textContent = `แสดง ${rangeStart}-${rangeEnd} จาก ${totalItems} รายการ`;
+    const numbersEl = document.getElementById('participantPaginationNumbers');
+    if (numbersEl) {
+      numbersEl.innerHTML = buildCertPageWindow(current, totalPages).map(p => p === '...'
+        ? '<span class="px-2 text-slate-400">...</span>'
+        : `<button type="button" onclick="goToParticipantPage(${p})" class="px-3 py-1.5 rounded-md text-xs font-medium ${p === current ? 'bg-navy-800 text-white' : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-100'}">${p}</button>`
+      ).join('');
+    }
+    const prevBtn = document.getElementById('participantPagePrev');
+    const nextBtn = document.getElementById('participantPageNext');
+    if (prevBtn) prevBtn.disabled = current <= 1;
+    if (nextBtn) nextBtn.disabled = current >= totalPages;
   }
 
   /* --- Bulk selection & deletion for the participants list --- */
@@ -1385,8 +1466,12 @@
     if (!rawActivity) {
       CertiFlowState.certificates = [];
       CertiFlowState.selectedCertIds = [];
+      CertiFlowState.certFullList = [];
+      CertiFlowState.certPage = 1;
+      CertiFlowState.renderedCertIds = [];
       if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงทะเบียนเกียรติบัตร</td></tr>';
-      renderCertificatesTable([]);
+      updateCertSelectionUi();
+      renderCertPaginationControls(0, 0, 0);
       return;
     }
 

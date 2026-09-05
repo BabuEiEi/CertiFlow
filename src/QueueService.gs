@@ -63,7 +63,7 @@ const QueueService = {
     }
 
     if (typeof AuditService !== 'undefined') {
-      AuditService.log('CREATE_QUEUE', 'GenerationQueue', queueId, null, job, `Created ${cleanJobType} queue for ${cleanActivityId}`);
+      AuditService.log(AuditService.ACTIONS.CREATE_QUEUE, 'GenerationQueue', queueId, null, job, `Created ${cleanJobType} queue for ${cleanActivityId}`);
     }
 
     return job;

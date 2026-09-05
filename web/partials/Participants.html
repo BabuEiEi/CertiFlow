@@ -37,27 +37,46 @@
   </div>
 
   <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-    <table class="min-w-full divide-y divide-slate-200 text-sm">
-      <thead class="bg-slate-50 text-slate-700 font-medium">
-        <tr>
-          <th class="px-4 py-3 text-center w-10">
-            <input type="checkbox" id="participantSelectAll" onchange="toggleSelectAllParticipants(this.checked)" title="เลือกทั้งหมดในตาราง" class="h-4 w-4 rounded border-slate-300 align-middle">
-          </th>
-          <th class="px-4 py-3 text-left">ID ผู้เข้าร่วม</th>
-          <th class="px-4 py-3 text-left">คำนำหน้า</th>
-          <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
-          <th class="px-4 py-3 text-left">สถานศึกษา/หน่วยงาน</th>
-          <th class="px-4 py-3 text-left">ด้านการอบรม</th>
-          <th class="px-4 py-3 text-center">สถานะ</th>
-          <th class="px-4 py-3 text-right">จัดการ</th>
-        </tr>
-      </thead>
-      <tbody id="participantTableBody" class="divide-y divide-slate-200">
-        <tr>
-          <td colspan="8" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
-        </tr>
-      </tbody>
-    </table>
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-slate-200 text-sm">
+        <thead class="bg-slate-50 text-slate-700 font-medium">
+          <tr>
+            <th class="px-4 py-3 text-center w-10">
+              <input type="checkbox" id="participantSelectAll" onchange="toggleSelectAllParticipants(this.checked)" title="เลือกทั้งหมดในตาราง" class="h-4 w-4 rounded border-slate-300 align-middle">
+            </th>
+            <th class="px-4 py-3 text-left">ID ผู้เข้าร่วม</th>
+            <th class="px-4 py-3 text-left">คำนำหน้า</th>
+            <th class="px-4 py-3 text-left">ชื่อ-นามสกุล</th>
+            <th class="px-4 py-3 text-left">สถานศึกษา/หน่วยงาน</th>
+            <th class="px-4 py-3 text-left">ด้านการอบรม</th>
+            <th class="px-4 py-3 text-center">สถานะ</th>
+            <th class="px-4 py-3 text-right">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="participantTableBody" class="divide-y divide-slate-200">
+          <tr>
+            <td colspan="8" class="px-4 py-6 text-center text-slate-400">กรุณาเลือกกิจกรรมเพื่อแสดงรายชื่อ</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- แถบ Pagination Bar ของหน้า Participants -->
+    <div id="participantPaginationBar" class="hidden flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-200 bg-slate-50 text-xs">
+      <div class="flex items-center gap-2">
+        <span id="participantPaginationSummary" class="text-slate-600"></span>
+        <select id="participantPageSizeSelect" onchange="changeParticipantPageSize(this.value)" class="rounded-md border-slate-300 border p-1.5 text-xs bg-white">
+          <option value="20">20 แถว</option>
+          <option value="50" selected>50 แถว</option>
+          <option value="100">100 แถว</option>
+          <option value="ALL">ทั้งหมด</option>
+        </select>
+      </div>
+      <div class="flex items-center gap-1">
+        <button type="button" id="participantPagePrev" onclick="participantPagePrev()" class="px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium">ก่อนหน้า</button>
+        <div id="participantPaginationNumbers" class="flex items-center gap-1"></div>
+        <button type="button" id="participantPageNext" onclick="participantPageNext()" class="px-3 py-1.5 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-medium">ถัดไป</button>
+      </div>
+    </div>
   </div>
 </section>
 

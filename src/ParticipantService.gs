@@ -296,6 +296,7 @@ const ParticipantService = {
       firstName: updatedCertificate.firstName,
       lastName: updatedCertificate.lastName,
       school: updatedCertificate.school,
+      trainingType: updatedCertificate.trainingType,
       participantStatus: updatedCertificate.participantStatus
     };
   },
