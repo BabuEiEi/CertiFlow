@@ -2,7 +2,7 @@
 
 ระบบสร้าง ค้นหา ตรวจสอบ และดาวน์โหลดเกียรติบัตรออนไลน์ สำหรับหลายกิจกรรม โดยใช้ Google Workspace เป็นแกนหลัก
 
-> เอกสารนี้เป็นทั้งข้อกำหนดโครงการ (project specification) และคู่มือสั่งงาน AI Agent ใน VS Code ให้พัฒนาทีละ Phase อย่างเป็นลำดับ
+> เอกสารนี้เป็นข้อกำหนดโครงการ (project specification) ของระบบที่ใช้งานจริงอยู่ — หัวข้อ 1-14 คือสิ่งที่ระบบเป็นและต้องรักษาไว้ หัวข้อ 15 เป็นบันทึกย้อนหลังว่าระบบถูกสร้างขึ้นมาอย่างไร ส่วนวิธีใช้งานรายหน้าอยู่ที่ [`docs/user-guide.md`](docs/user-guide.md)
 
 ---
 
@@ -604,313 +604,42 @@ CertiFlow/
 
 ---
 
-# 15. แผนดำเนินงานและ Prompts สำหรับ AI Agent ใน VS Code
-
-## วิธีใช้
-
-1. เริ่มจาก Phase 0 แล้วทำตามลำดับ
-2. คัดลอก prompt ในแต่ละ step ไปส่ง AI Agent ใน VS Code ทีละกล่อง
-3. ให้ Agent สรุปไฟล์ที่เปลี่ยน ผลทดสอบ และสิ่งที่ยังต้องตั้งค่าก่อนจบแต่ละ step
-4. ตรวจและ commit งานก่อนเริ่ม phase ถัดไป
-5. ห้ามให้ Agent เปลี่ยน technology stack หรือเพิ่ม dynamic placeholders โดยไม่ได้รับอนุมัติ
-
-> Prompt ทุกชุดด้านล่างเป็นภาษาไทยเพื่อให้คัดลอกไปใช้งานได้โดยตรง
-
----
-
-## Phase 0 — ตั้งค่าโครงการและกติกา
-
-### Step 0.1: สำรวจและวางโครงสร้าง
-
-```text
-คุณเป็น Senior Google Apps Script Engineer ทำงานในโครงการ Certificate Management System
-
-ข้อกำหนดที่ห้ามเปลี่ยน:
-- Frontend: HTML5 + Tailwind CSS + Vanilla JavaScript เท่านั้น (ไม่ใช้ React/Vue/TypeScript)
-- Backend: Google Apps Script
-- Database: Google Sheets
-- Storage: Google Drive เก็บเฉพาะ template และ asset ของระบบ
-- Certificate template: Google Slides, 1 activity ต่อ 1 template, 1 slide หลัก
-- Dynamic fields มีเพียง {{name}} และ {{certNo}}
-- PDF/JPEG สร้างแบบ on demand และลบ temporary file/slide หลังส่งกลับ ห้ามเก็บไฟล์เกียรติบัตรถาวร
-
-ให้สำรวจ repository ปัจจุบันก่อน แล้วสร้างหรือปรับโครงสร้างไฟล์ให้ตรงกับ README ส่วน “โครงสร้างไฟล์ที่แนะนำ” รวม appsscript.json, src/, web/, tests/, docs/ และ README ที่ไม่ซ้ำซ้อน
-อย่าเขียน business logic ขนาดใหญ่ใน step นี้
-เพิ่ม .gitignore ที่เหมาะกับ clasp และ secrets โดยไม่ลบไฟล์เดิม
-สรุปไฟล์ที่สร้าง/แก้ไข และบอกคำสั่งทดสอบหรือ sync ที่ควรรัน
-```
-
-### Step 0.2: ตั้งค่า clasp และ environment
-
-```text
-ดำเนินการตั้งค่าโครงการ Google Apps Script สำหรับพัฒนาจาก VS Code โดยใช้ clasp
-ให้สร้างเอกสาร docs/deployment.md อธิบายขั้นตอน login, create/bind script, push, deploy web app และการตั้ง Script Properties โดยไม่ใส่ค่า secret จริง
-ให้สร้างตัวอย่าง .clasp.example.json และแนวทางเก็บ DATABASE_SPREADSHEET_ID, TEMPLATE_FOLDER_ID, TEMP_FOLDER_ID, WEB_APP_URL ใน Script Properties
-ห้าม commit หรือ hard-code scriptId, spreadsheetId, URL จริง หรือข้อมูลลับ
-ตรวจว่า appsscript.json มี scopes เท่าที่จำเป็นสำหรับ Spreadsheet, Drive, Slides และ web app
-สรุปการเปลี่ยนแปลงและความตั้งค่าที่ผู้ดูแลต้องทำเองใน Google Workspace
-```
-
----
-
-## Phase 1 — Schema, Config และฐานข้อมูล
-
-### Step 1.1: สร้าง schema และ bootstrap
-
-```text
-พัฒนาโมดูล Config.gs, SheetService.gs และ Validation.gs สำหรับ Certificate Management System
-ให้กำหนด schema ของ Sheets: Settings, Activities, Users, Participants, Certificates, GenerationQueue และ AuditLogs ตาม README
-สร้างฟังก์ชัน initializeDatabase() ที่สร้าง sheet ที่ขาด, ใส่ header ตามลำดับที่กำหนด, freeze header row และไม่เขียนทับข้อมูลเดิม
-สร้าง helper อ่าน Script Properties และ validate ว่า DATABASE_SPREADSHEET_ID ตั้งค่าแล้ว
-การอ่าน/เขียนต้องทำเป็น batch เมื่อทำได้ และคืน error ที่เข้าใจง่าย
-เขียน unit tests สำหรับ schema/header และ validation หลักเท่าที่ทำได้ใน local test environment
-ห้ามเขียนข้อมูลตัวอย่างลง production sheet โดยอัตโนมัติ
-```
-
-### Step 1.2: Repository และ Audit Log
-
-```text
-สร้าง repository/service layer สำหรับ Activities, Participants, Certificates, Users และ AuditLogs
-กำหนด model และ validation ที่ชัดเจน ไม่ให้ UI เข้าถึง SpreadsheetApp โดยตรง
-สร้าง AuditService.log(action, entityType, entityId, before, after, note) ที่บันทึก actorEmail/actorRole/server timestamp
-ให้ beforeJson/afterJson ถูกตัด/ปกป้องข้อมูลอ่อนไหวตามความเหมาะสม
-เพิ่ม helper สำหรับ pagination, lookup by ID และ duplicate check ของ participant โดยใช้ activityId + firstName + lastName + school
-เขียน tests สำหรับ duplicate detection และ audit payload
-```
-
----
-
-## Phase 2 — Authentication และ Authorization
-
-### Step 2.1: Role guard
-
-```text
-พัฒนา AuthService.gs สำหรับตรวจ userId/รหัสผ่าน ออก session token อายุจำกัด และเทียบ role กับ Users sheet
-รองรับ role ADMIN และ STAFF, status ACTIVE/INACTIVE และ public visitor ที่ไม่มีสิทธิ์ management
-สร้าง requireAuthenticatedUser(), requireRole(...roles) และ getCurrentUserContext()
-ทุกฟังก์ชัน management ต้องใช้ role guard ฝั่ง server; ห้ามเชื่อ email/role ที่ browser ส่งมา
-ออกแบบ fallback/error ที่ชัดเจนสำหรับ deployment configuration ที่อ่าน email ผู้ใช้ไม่ได้
-เพิ่ม tests หรือ testable pure functions สำหรับ permission matrix ตาม README
-```
-
-### Step 2.2: API entry point ที่ปลอดภัย
-
-```text
-สร้าง Code.gs เป็น entry point ของ GAS Web App
-รองรับ doGet(e) สำหรับการ render หน้า HTML และ public actions ที่ปลอดภัย: activities, search, verify, preview, download
-วางโครง doPost(e) หรือ server-side handlers สำหรับ management actions พร้อม routing แบบ allowlist
-กำหนด response envelope {success, data, error, requestId} และ error handling กลาง
-อย่าเปิด endpoint สำหรับแก้ไขข้อมูลโดยไม่มี requireRole และอย่าใส่ API key ใน client
-เพิ่ม request validation, pageSize limit และ structured logging
-```
-
----
-
-## Phase 3 — Activities, Template และเลขที่เกียรติบัตร
-
-### Step 3.1: Activity management
-
-```text
-พัฒนา ActivityService สำหรับสร้าง แก้ไข อ่าน และปิดกิจกรรม
-ให้รองรับ fields ตาม Activities sheet รวม templateId, prefixText, prefix, startNumber, endNumber, digitLength, separator, year, numberFormat และ status
-validate ว่า activityId ไม่ซ้ำ, ช่วง start/end number ถูกต้อง, status อยู่ใน DRAFT/ACTIVE/CLOSED และ numberFormat อยู่ใน THAI/ARABIC
-เฉพาะ ADMIN เท่านั้นที่สร้าง แก้ไข หรือลบกิจกรรม; STAFF อ่านได้
-ทุกการเปลี่ยนแปลงต้องบันทึก Audit Log
-เขียน tests สำหรับ validation ของ activity
-```
-
-### Step 3.2: Template validation และ preview
-
-```text
-สร้าง TemplateService สำหรับตรวจ Google Slides template จาก templateId
-ให้ตรวจการเข้าถึงไฟล์ ประเภทไฟล์ จำนวน slide และการมีอยู่ของ {{name}} กับ {{certNo}} ใน slide หลัก
-ต้องรายงาน placeholder ที่ขาด/เกิน/ซ้ำอย่างชัดเจน และห้ามแก้ไข template ต้นฉบับ
-เพิ่ม createTemplatePreview(activityId) ที่ใช้สำเนาชั่วคราวแทน placeholder ด้วยข้อมูลตัวอย่าง แล้วคืน preview อย่างปลอดภัยและลบทิ้งใน finally
-ออกแบบ TEMP_FOLDER_ID ผ่าน Script Properties
-เขียน tests สำหรับการแยก/ตรวจ placeholder โดยใช้ pure functions
-```
-
-### Step 3.3: Number service
-
-```text
-พัฒนา NumberService.gs เพื่อสร้าง certificateId และ certificateNo
-certificateId ต้องมีรูปแบบ CERT-{activityId}-{sixDigitSequence}; certificateNo ต้องประกอบจาก prefixText, prefix, runningNumber, separator, year และรองรับ THAI/ARABIC digit conversion
-ใช้ LockService ระหว่าง assignNumbers(activityId, participantIds) และตรวจ collision กับ Certificates ก่อนบันทึก
-การกำหนดเลขต้อง atomic เท่าที่ Apps Script รองรับ: ถ้าพบ error ให้ไม่เหลือ record ครึ่งทาง และบันทึก Audit Log
-รองรับการตรวจช่วง startNumber/endNumber และห้าม reset เลขหากจะทำให้เลขที่ออกแล้วซ้ำ
-เขียน tests ครอบคลุมเลขไทย, digit padding, collision และขอบเขตเลข
-```
-
----
-
-## Phase 4 — Import และ Certificate Registry
-
-### Step 4.1: Import pipeline
-
-```text
-พัฒนา ParticipantService import pipeline ที่รับข้อมูลจาก CSV/XLSX หรือ array ที่แปลงแล้ว
-กำหนด column mapping ขั้นต่ำ: prefixName, firstName, lastName, school, participantStatus
-สร้าง validateImport() เพื่อคืน rows ที่ถูกต้อง, errors และ suspected duplicates ก่อนเขียนจริง
-normalize ช่องว่าง, validate required fields และ participantStatus (เข้าร่วม/ผ่านการอบรม)
-สร้าง commitImport() ที่บันทึกเฉพาะเมื่อผู้ใช้ยืนยัน และเขียนแบบ batch พร้อม Audit Log
-อย่าให้ import ซ้ำหาก participant key เดิมอยู่ใน activity เดียวกัน เว้นแต่ผู้มีสิทธิ์ระบุ override อย่างชัดเจน
-เขียน tests สำหรับ normalization, validation และ duplicate detection
-```
-
-### Step 4.2: Certificate lifecycle
-
-```text
-พัฒนา CertificateService สำหรับสร้าง/อ่าน/แก้ไข/issue/revoke/delete certificate registry
-แยก certificateId ซึ่งไม่เปลี่ยน ออกจาก certificateNo ที่แสดงบนใบ
-เมื่อแก้ชื่อ ให้เก็บ originalPrefixName/originalFirstName/originalLastName ไว้ครั้งแรก และบันทึก before/after ใน AuditLogs
-รองรับสถานะ DRAFT, PENDING, ISSUED, REVOKED, DELETED พร้อม state transition ที่ปลอดภัย
-STAFF แก้ไขและ revoke ได้ แต่ delete ถาวรได้เฉพาะ ADMIN
-ห้ามเก็บ file ID หรือ URL ของ PDF/JPEG ถาวรใน Certificates
-เขียน tests สำหรับ permission และ state transition
-```
-
----
-
-## Phase 5 — Certificate generation, Queue และ QR
-
-### Step 5.1: Temporary exporter
-
-```text
-พัฒนา ExportService.gs สำหรับสร้าง certificate preview, PDF และ JPEG แบบ on demand
-flow ต้องเป็น: copy template → replace {{name}}/{{certNo}} → export → ส่งผลลัพธ์ → ลบ temporary slide/file ใน finally
-ห้ามแก้ template ต้นฉบับ และห้ามเก็บ PDF/JPEG ที่สร้างเสร็จเป็นไฟล์ถาวรใน Drive
-ตรวจว่า certificate อยู่สถานะ ISSUED ก่อน export; REVOKED/DELETED ต้องถูกปฏิเสธพร้อม error ที่ปลอดภัย
-ตั้งชื่อ output ชั่วคราวด้วย certificateId และชื่อที่ sanitize แล้ว
-จัดการ error และ cleanup อย่างครบถ้วน รวมถึงกรณี export ล้มเหลว
-เขียน integration test plan และ unit tests สำหรับ filename/data mapping ที่เป็น pure function
-```
-
-### Step 5.2: Queue และ batch processing
-
-```text
-พัฒนา QueueService.gs สำหรับงานที่ต้องประมวลผลเป็นชุด เช่น assign number หรือสร้าง preview จำนวนมาก
-ใช้ GenerationQueue schema ตาม README; แบ่งงาน default 25 รายการต่อ batch, บันทึก currentRow, successCount, failCount และ lastError
-ทำให้ job ทำต่อได้หลัง timeout โดยไม่สร้างเลขหรือไฟล์ซ้ำ และมี LockService ป้องกัน worker ซ้อน
-เพิ่ม API getGenerationProgress(queueId) และ UI-friendly status
-อย่าสร้าง trigger แบบไม่จำเป็น; ถ้าใช้ trigger ให้มี cleanup และเอกสารวิธีลบ trigger
-เขียน tests สำหรับ resume logic และ status transition
-```
-
-### Step 5.3: QR verification
-
-```text
-พัฒนา VerificationService สำหรับสร้าง URL ตรวจสอบจาก WEB_APP_URL + ?page=verify&id={certificateId}
-QR ต้องไม่มีชื่อ โรงเรียน หรือข้อมูลส่วนบุคคลใน query string
-สร้าง getVerificationRecord(certificateId) ที่คืนเฉพาะข้อมูลจำเป็น: name, activity, certificateNo, issueDate, issueAgency และ status
-สถานะ ISSUED ต้องแสดงว่าถูกต้อง; REVOKED ต้องแสดงว่าใบถูกยกเลิก; ไม่พบข้อมูลต้องแสดง not found โดยไม่เปิดเผยรายละเอียดภายใน
-เพิ่ม helper สำหรับ QR generation ที่ไม่ hard-code provider หรือให้ frontend สร้างภาพ QR จาก verification URL
-เขียน tests สำหรับ URL encoding และ response ตามสถานะ
-```
-
----
-
-## Phase 6 — Frontend Public Mode
-
-### Step 6.1: Design system และ layout
-
-```text
-สร้าง frontend GAS HTMLService ด้วย HTML5, Tailwind CSS และ Vanilla JavaScript เท่านั้น
-ออกแบบ responsive layout สำหรับ Public Mode และ Management Mode โดยใช้ไฟล์/partials ตามโครงสร้างโครงการ
-สร้าง top bar ที่แสดง Public Mode เป็นค่าเริ่มต้น และแสดงปุ่ม Management Mode เฉพาะผู้มีสิทธิ์
-ใส่ loading, empty, error และ success states ที่เข้าถึงได้ (keyboard, label, focus, aria ที่เหมาะสม)
-ห้ามใช้ framework, build system หนัก หรือ inline secret
-รักษาภาษาไทยให้อ่านง่ายทั้งมือถือและเดสก์ท็อป
-```
-
-### Step 6.2: Public search และ result cards
-
-```text
-พัฒนาหน้า Public Search
-ให้โหลดรายการกิจกรรม ACTIVE เข้า dropdown และค้นหาได้จากชื่อ นามสกุล ชื่อเต็ม โรงเรียน หรือเลขที่เกียรติบัตร
-ทำ client-side debounce/validation ที่พอดี แต่ให้ server เป็นผู้บังคับ validation และ pagination
-แสดง result card ตาม README พร้อมปุ่ม ดูตัวอย่าง, ดาวน์โหลด PDF, ดาวน์โหลด JPEG และ แจ้งข้อมูลไม่ถูกต้อง
-Public ห้ามเห็นคำสั่ง edit/revoke/delete หรือ audit data
-รองรับลิงก์ direct ไปยัง verify page และจัดการไม่มีผลการค้นหาอย่างสุภาพ
-ทดสอบ responsive, XSS-safe rendering และกรณี query ภาษาไทย/ช่องว่างซ้ำ
-```
-
-### Step 6.3: Verify page
-
-```text
-พัฒนาหน้า Verify Certificate ที่อ่าน certificateId จาก query string
-เรียก public verify endpoint แล้วแสดงผล 3 สถานะ: ถูกต้อง/ออกแล้ว, ถูกยกเลิก, ไม่พบข้อมูล
-แสดงเฉพาะ name, activity, certificateNo, issueDate, issueAgency และสถานะ
-อย่า render HTML จากข้อมูลโดยตรงโดยไม่ escape และอย่าเปิดเผย email, audit history หรือข้อมูลภายใน
-เพิ่มปุ่มกลับหน้าค้นหา และให้ layout เหมาะกับการเปิดจากมือถือหลังสแกน QR
-```
-
----
-
-## Phase 7 — Frontend Management Mode
-
-### Step 7.1: Dashboard และ Activities UI
-
-```text
-พัฒนา Management Mode สำหรับ ADMIN/STAFF โดยตรวจ user context จาก server เมื่อเริ่มหน้า
-สร้าง Dashboard แสดงจำนวนกิจกรรม ผู้เข้าร่วม ออกแล้ว รอดำเนินการ และยกเลิก รวมตารางสรุปต่อกิจกรรม
-สร้าง Activities UI สำหรับ ADMIN: create/edit/close activity, กรอกเลขที่ และผูก templateId พร้อมปุ่ม validate/preview template
-STAFF ต้องเข้าดูได้ แต่ไม่สามารถแก้ไขกิจกรรม
-ทุก mutation ต้องแสดง loading/result/error และ refresh ข้อมูลโดยไม่ทำให้ผู้ใช้สับสน
-```
-
-### Step 7.2: Participants, import และ certificates UI
-
-```text
-พัฒนา Participants และ Certificates UI ใน Management Mode
-รองรับ upload/import CSV/XLSX, แสดง mapping และ preview validation (ถูกต้อง/ผิดพลาด/อาจซ้ำ) ก่อนปุ่มยืนยัน
-เพิ่มการเลือก participant เพื่อ assign numbers และแสดง progress ของ queue
-หน้า Certificates ต้องค้นหา ดูตัวอย่าง แก้ไขชื่อ issue/revoke และ (เฉพาะ ADMIN) delete พร้อม confirmation ที่ระบุผลกระทบชัดเจน
-เมื่อแก้ไขหรือยกเลิก ให้แสดงเหตุผล/ผลสำเร็จโดยไม่แก้หน้า Public แบบผิดสิทธิ์
-อย่า bypass authorization: UI ซ่อนได้ แต่ server guard ต้องเป็นตัวตัดสินเสมอ
-```
-
-### Step 7.3: Users, settings และ logs
-
-```text
-พัฒนา Users, Settings และ Audit Logs UI เฉพาะ ADMIN
-Users: เพิ่ม/แก้ role/activate/deactivate ด้วย email ที่ validate แล้ว ห้ามลบตนเองโดยไม่มีกลไกป้องกัน
-Settings: แสดงค่า configuration ที่แก้ได้โดยไม่เปิดเผย secret และ validate URL/ID ก่อนบันทึก
-Audit Logs: filter ตาม action, entityType, actor, ช่วงเวลา และแสดง before/after แบบอ่านง่ายโดยคำนึงถึงข้อมูลส่วนบุคคล
-เพิ่ม confirmation สำหรับการเปลี่ยนสิทธิ์และการลบถาวร
-```
-
----
-
-## Phase 8 — Test, Security Review และ Deployment
-
-### Step 8.1: Test และ quality review
-
-```text
-ตรวจทานโครงการ Certificate Management System ทั้งระบบเทียบกับ README นี้
-สร้างหรือปรับ test plan ครอบคลุม: schema bootstrap, roles, activity validation, template placeholders, number collision/Thai digits, import duplicate, certificate lifecycle, export cleanup, public search, verify QR และ queue resume
-รัน tests/lint ที่มีอยู่ แก้เฉพาะความผิดพลาดใน scope และรายงานผลพร้อมรายการที่ยังต้องทดสอบใน Google Workspace จริง
-ตรวจ code quality: ไม่มี hard-coded secret, ไม่มี frontend access ไป Sheets, ไม่มี dynamic field นอก {{name}}/{{certNo}}, และไม่มีการเก็บ PDF/JPEG ถาวร
-```
-
-### Step 8.2: Security review
-
-```text
-ทำ security review แบบเน้นการปฏิบัติสำหรับ GAS Web App นี้
-ตรวจ public/admin route separation, server-side authorization ทุก mutation, data exposure ใน search/verify, input validation, XSS, IDOR ของ certificateId, rate limiting/abuse safeguards, LockService และ temporary file cleanup
-เสนอและลงมือแก้เฉพาะช่องโหว่ที่ยืนยันได้ใน codebase โดยไม่เปลี่ยน requirements
-สร้าง docs/security-checklist.md ที่มีรายการตั้งค่า deployment และ manual checks ก่อนเปิดใช้จริง
-สรุปความเสี่ยงที่ยังเหลือและวิธีตรวจสอบ
-```
-
-### Step 8.3: Deploy และ Embed
-
-```text
-เตรียมโครงการสำหรับ deploy เป็น Google Apps Script Web App
-ตรวจ appsscript.json, Script Properties, scopes, route, error page และ documentation ให้พร้อม production โดยไม่ deploy แทนผู้ใช้และไม่เผยข้อมูลลับ
-อัปเดต docs/deployment.md ให้มีขั้นตอน deploy version, กำหนด access ของ Public Search, ทดสอบ ADMIN/STAFF, ตั้ง WEB_APP_URL, ทดลอง QR verification และ Embed URL ใน Google Sites
-เพิ่ม pre-launch checklist และ rollback steps ที่ปลอดภัย
-สรุปสิ่งที่ผู้ดูแลต้องทำใน Google Workspace ด้วยตนเอง
-```
+## 15. บันทึกการพัฒนา (Development History)
+
+หัวข้อนี้เดิมเป็นแผนงานและชุด prompt สำหรับสั่ง AI Agent พัฒนาระบบทีละ Phase ตอนนี้ระบบสร้างเสร็จและใช้งานจริงแล้ว จึงเก็บไว้เป็น**บันทึกย้อนหลัง**ว่าแต่ละ Phase ส่งมอบอะไรและงานนั้นไปอยู่ที่ไฟล์ไหน ไม่ใช่ขั้นตอนที่ต้องทำซ้ำ — สำหรับการใช้งานจริงให้ดูหัวข้อ 1-14 และ `docs/user-guide.md` เป็นหลัก
+
+| Phase | ส่งมอบ | ไฟล์หลัก |
+|---|---|---|
+| 0 — โครงสร้างและ environment | วางโครง `src/` `web/` `tests/` `docs/`, ตั้ง clasp และ `.gitignore` ให้ไม่หลุด secret | `appsscript.json`, `.clasp.example.json`, `docs/deployment.md` |
+| 1 — Schema และฐานข้อมูล | schema 7 ชีตพร้อม `initializeDatabase()` ที่สร้างชีตที่ขาดและเติมคอลัมน์ใหม่ต่อท้ายโดยไม่ทับข้อมูลเดิม, repository layer แบบ batch และ audit log | `Config.gs`, `SheetService.gs`, `Validation.gs`, `AuditService.gs` |
+| 2 — Authentication | login ด้วย userId/password ในชีต Users, session token มีอายุ, `requireRole()` ฝั่ง server และ entry point แบบ allowlist | `AuthService.gs`, `Code.gs` |
+| 3 — กิจกรรม เลขที่ และ template | จัดการกิจกรรม, ตรวจ Google Slides template, ออกเลขไทย/อารบิกใต้ `LockService` พร้อมกันเลขซ้ำและกันช่วงเลขทับกันข้ามกิจกรรม | `ActivityService.gs`, `TemplateService.gs`, `NumberService.gs` |
+| 4 — นำเข้าและทะเบียนเกียรติบัตร | `validateImport()` / `commitImport()` พร้อม duplicate check, วงจรสถานะเกียรติบัตรครบ (issue / revoke / reissue / delete) และเก็บชื่อเดิมเมื่อแก้ครั้งแรก | `ParticipantService.gs`, `CertificateService.gs` |
+| 5 — สร้างไฟล์ คิว และ QR | export PDF/JPEG แบบชั่วคราวพร้อม cleanup ใน `finally`, คิวแบบ batch ครั้งละ 25 รายการที่ทำต่อได้หลัง timeout และ verification URL สำหรับ QR | `ExportService.gs`, `QueueService.gs`, `SearchService.gs` |
+| 6 — Public Mode | หน้าค้นหาสาธารณะและหน้า Verify ที่ escape ข้อมูลทุกจุดและไม่เปิดเผยข้อมูลภายใน | `web/partials/PublicSearch.html`, `Verify.html` |
+| 7 — Management Mode | Dashboard, กิจกรรม, นำเข้ารายชื่อ, ทะเบียนเกียรติบัตร, ผู้ใช้ ตั้งค่า และ Audit Logs | `web/partials/*.html`, `web/Scripts.html`, `SettingsService.gs` |
+| 8 — ทดสอบและ deploy | ชุดทดสอบ node ที่รันด้วย `npm test` โดยไม่ต้องพึ่ง Apps Script runtime, security review และ deploy เป็น Web App แบบกำหนดเวอร์ชัน | `tests/*.test.js`, `docs/deployment.md` |
+
+### สิ่งที่ต่างจากแผนเดิม
+
+- **placeholder เพิ่มจาก 2 เป็น 5** แผนเดิมล็อกไว้แค่ `{{name}}` กับ `{{certNo}}` ภายหลังเพิ่ม `{{office}}`, `{{type}}` และ `{{qr}}` เป็นตัวเลือกที่ใส่หรือไม่ใส่ก็ได้
+- **ไม่มี `VerificationService.gs` แยกไฟล์** ตามที่แผน Phase 5.3 เขียนไว้ ฟังก์ชัน verification URL และ verification record อยู่ใน `SearchService.gs` ร่วมกับการค้นหา
+- **การลบเกียรติบัตรเป็น soft delete** ไม่ใช่การลบแถวจริงอย่างที่คำว่า "delete ถาวร" ในแผนสื่อ และภายหลังเพิ่ม `restoreCertificate` สำหรับกู้คืน
+- **STAFF ลบผู้เข้าร่วมได้** ต่างจากแผนเดิมที่สงวนการลบทุกชนิดไว้ให้ ADMIN — แต่การลบเกียรติบัตรออกจากทะเบียนยังเป็นสิทธิ์ ADMIN เท่านั้น
+- **ยังไม่มี `docs/security-checklist.md`** ที่แผน Phase 8.2 ระบุไว้ รายการตรวจก่อนเปิดใช้จริงอยู่ในหัวข้อ 16 ของเอกสารนี้แทน
+
+### งานที่เพิ่มหลังแผนจบ
+
+ดูรายละเอียดได้จาก git log — งานหลักที่เพิ่มหลังระบบขึ้นใช้งานจริง
+
+- ปรับดีไซน์เป็นธีมกรมท่า/ทอง ใช้ SweetAlert2 และเปลี่ยนเมนูเป็น sidebar
+- เพิ่มคู่มือการใช้งานทั้งในระบบ (`web/partials/Guide.html`) และในรีโป (`docs/user-guide.md`)
+- ทำงานเป็นชุดจากการติ๊กเลือกแถว (ออกเลข / ยกเลิก / ลบ) พร้อมเพดาน 25 รายการต่อรอบและแถบความคืบหน้า
+- ออกใหม่ (reissue) โดยคงเลขเดิม และกันช่วงเลขทับซ้อนข้ามกิจกรรม
+- ฝัง QR ลงในไฟล์เกียรติบัตรที่สร้าง
+- เพิ่มฟิลด์ "ด้านการอบรม" ทั้งระดับกิจกรรมและระดับผู้เข้าร่วม
+- แยกการนำเข้ารายชื่อเป็น 2 ทาง (ทีละรายการ / ไฟล์ Excel-CSV)
+- กู้คืนเกียรติบัตรที่ถูกลบ พร้อมแก้ตัวนับ id ไม่ให้แจก `certificateId` ซ้ำกับใบที่ถูกลบ
 
 ---
 
